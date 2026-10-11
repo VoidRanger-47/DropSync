@@ -146,7 +146,18 @@ class DropSyncAppUI:
         left_nav = tk.Frame(nav_frame, bg="#111113")
         left_nav.pack(side="left")
 
-        lbl_logo = tk.Label(left_nav, text="⚡ DropSync", font=("Segoe UI", 16, "bold"), bg="#111113", fg="#FF7A00")
+        try:
+            base_dir = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
+            mark_path = os.path.join(base_dir, "assets", "icon", "dropsync_mark_transparent.png")
+            if os.path.exists(mark_path):
+                raw_mark = Image.open(mark_path).resize((26, 26), Image.Resampling.LANCZOS)
+                self._nav_logo_img = ImageTk.PhotoImage(raw_mark)
+                lbl_icon_mark = tk.Label(left_nav, image=self._nav_logo_img, bg="#111113")
+                lbl_icon_mark.pack(side="left", padx=(0, 8))
+        except Exception:
+            pass
+
+        lbl_logo = tk.Label(left_nav, text="DropSync", font=("Segoe UI", 16, "bold"), bg="#111113", fg="#FFFFFF")
         lbl_logo.pack(side="left", padx=(0, 10))
 
         pc_name = platform.node() or "Windows-PC"

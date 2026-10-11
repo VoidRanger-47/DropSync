@@ -148,7 +148,7 @@ class _DropSyncLogoState extends State<DropSyncLogo>
                         ),
                       ),
                 Image.asset(
-                  widget.assetPath ?? 'assets/icon/dropsync_mark.png',
+                  widget.assetPath ?? 'assets/icon/dropsync_mark_transparent.png',
                   fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) =>
                       const SizedBox.shrink(),

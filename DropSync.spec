@@ -8,6 +8,7 @@ a = Analysis(
     datas=[
         ('windows/runner/resources/app_icon.ico', 'windows/runner/resources'),
         ('assets/icon/dropsync_icon.png', 'assets/icon'),
+        ('assets/icon/dropsync_mark_transparent.png', 'assets/icon'),
     ],
     hiddenimports=['qrcode', 'PIL', 'PIL.Image', 'PIL.ImageTk'],
     hookspath=[],

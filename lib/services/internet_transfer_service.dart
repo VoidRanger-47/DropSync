@@ -329,12 +329,30 @@ class InternetTransferService {
               _setTransferState(InternetTransferState.transferring, 'Peer returned! Resuming transfer...');
             }
           }
+        } else {
+          // If remote peer is offline according to relay and timeout has elapsed
+          if (_isRemoteOnPage && now.difference(_lastRemoteHeartbeat) >= peerTimeout) {
+            _isRemoteOnPage = false;
+            _setPresence(
+              InternetPeerPresence.peerLeft,
+              _isSender
+                  ? 'PAUSED: Receiver has navigated away or closed the app.'
+                  : 'PAUSED: Sender has navigated away or closed the app.',
+            );
+            if (_transferState == InternetTransferState.transferring) {
+              _setTransferState(
+                InternetTransferState.paused,
+                'Transfer paused: Both users must stay on this page.',
+              );
+            }
+          }
         }
       }
     }).catchError((_) => null);
 
+    // Fallback for offline local unit tests / mock relay rooms
     final room = _mockRelayRooms[code];
-    if (room != null) {
+    if (room != null && (room.senderId != _localPeerId || room.receiverId != null)) {
       final now = DateTime.now();
       final remoteHeartbeat = _isSender ? room.receiverLastHeartbeat : room.senderLastHeartbeat;
 
@@ -345,22 +363,6 @@ class InternetTransferService {
           _setPresence(InternetPeerPresence.bothPresent, 'Both peers are active on this page. Transfer enabled.');
           if (_transferState == InternetTransferState.paused) {
             _setTransferState(InternetTransferState.transferring, 'Peer returned! Resuming transfer...');
-          }
-        }
-      } else {
-        if (_isRemoteOnPage && now.difference(_lastRemoteHeartbeat) >= peerTimeout) {
-          _isRemoteOnPage = false;
-          _setPresence(
-            InternetPeerPresence.peerLeft,
-            _isSender
-                ? 'PAUSED: Receiver has navigated away or closed the app.'
-                : 'PAUSED: Sender has navigated away or closed the app.',
-          );
-          if (_transferState == InternetTransferState.transferring) {
-            _setTransferState(
-              InternetTransferState.paused,
-              'Transfer paused: Both users must stay on this page.',
-            );
           }
         }
       }

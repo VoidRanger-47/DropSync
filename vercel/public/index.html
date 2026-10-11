@@ -804,12 +804,6 @@
 
       try {
         const res = await fetch(`/api/room?action=chunk&roomCode=${encodeURIComponent(state.roomCode)}`);
-        if (res.status === 403) {
-          transferStatusDot.className = 'status-dot paused';
-          transferStatusText.innerText = 'Transfer paused: Mutual presence required. Both users must stay on page.';
-          return;
-        }
-
         if (res.ok) {
           const data = await res.json();
           if (data.transferState === 'transferring' && !state.isTransferring) {

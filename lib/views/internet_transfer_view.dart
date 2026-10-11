@@ -430,23 +430,17 @@ class _InternetTransferViewState extends State<InternetTransferView>
   Widget _buildPresenceBanner() {
     final presence = widget.internetService.presenceState;
     final bothPresent = widget.internetService.areBothPresent;
-    final isPaused = widget.internetService.transferState == InternetTransferState.paused;
 
     Color color;
     IconData icon;
     String title;
     String subtitle;
 
-    if (isPaused) {
-      color = GeminiTheme.coralError;
-      icon = Icons.pause_circle_filled_rounded;
-      title = 'TRANSFER PAUSED';
-      subtitle = 'Remote peer left this page or minimized the app. Stay on this page to resume.';
-    } else if (bothPresent) {
+    if (bothPresent) {
       color = GeminiTheme.emeraldGreen;
       icon = Icons.verified_user_rounded;
-      title = 'BOTH PEERS LIVE ON THIS PAGE';
-      subtitle = 'Mutual presence confirmed. Encrypted transmission is active & ready.';
+      title = 'BOTH PEERS CONNECTED';
+      subtitle = 'Mutual presence confirmed. Encrypted transmission is active.';
     } else if (presence == InternetPeerPresence.waitingForPeer) {
       color = GeminiTheme.amberWarning;
       icon = Icons.hourglass_top_rounded;

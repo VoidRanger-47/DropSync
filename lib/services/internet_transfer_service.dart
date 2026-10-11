@@ -150,9 +150,6 @@ class InternetTransferService {
     if (!isOnPage) {
       _sendHeartbeat(status: 'left');
       _setPresence(InternetPeerPresence.disconnected, 'You left the transfer page');
-      if (_transferState == InternetTransferState.transferring) {
-        _setTransferState(InternetTransferState.paused, 'Transfer paused: You left the page');
-      }
     } else {
       if (_currentRoomCode != null) {
         _sendHeartbeat(status: 'active');
@@ -334,17 +331,11 @@ class InternetTransferService {
           if (_isRemoteOnPage && now.difference(_lastRemoteHeartbeat) >= peerTimeout) {
             _isRemoteOnPage = false;
             _setPresence(
-              InternetPeerPresence.peerLeft,
+              InternetPeerPresence.waitingForPeer,
               _isSender
-                  ? 'PAUSED: Receiver has navigated away or closed the app.'
-                  : 'PAUSED: Sender has navigated away or closed the app.',
+                  ? 'Receiver is currently offline or minimized.'
+                  : 'Sender is currently offline or minimized.',
             );
-            if (_transferState == InternetTransferState.transferring) {
-              _setTransferState(
-                InternetTransferState.paused,
-                'Transfer paused: Both users must stay on this page.',
-              );
-            }
           }
         }
       }
@@ -440,19 +431,6 @@ class InternetTransferService {
     final fileStream = file.openRead();
 
     await for (final rawChunk in fileStream) {
-      // 1. STRICT MUTUAL PRESENCE GUARD:
-      // Loop until both sender and receiver are confirmed on the page
-      while ((!_isLocalOnPage || !_isRemoteOnPage) && _currentRoomCode != null) {
-        _setTransferState(
-          InternetTransferState.paused,
-          !_isRemoteOnPage
-              ? 'Transfer Paused: Receiver left the page. Waiting...'
-              : 'Transfer Paused: You navigated away from the page.',
-        );
-        await Future.delayed(const Duration(milliseconds: 500));
-        _checkPresence();
-      }
-
       if (_currentRoomCode == null) {
         throw Exception('Transfer cancelled: room closed');
       }
@@ -559,18 +537,6 @@ class InternetTransferService {
     final stopwatch = Stopwatch();
 
     while (_currentRoomCode != null && _presenceState != InternetPeerPresence.disconnected) {
-      // 1. Check mutual presence
-      while ((!_isLocalOnPage || !_isRemoteOnPage) && _currentRoomCode != null) {
-        _setTransferState(
-          InternetTransferState.paused,
-          !_isRemoteOnPage
-              ? 'Transfer Paused: Sender left the page. Waiting...'
-              : 'Transfer Paused: You navigated away from the page.',
-        );
-        await Future.delayed(const Duration(milliseconds: 500));
-        _checkPresence();
-      }
-
       // Check HTTP relay for pending chunks if in-memory queue is empty
       if (room.chunkQueue.isEmpty) {
         try {

@@ -80,12 +80,6 @@ module.exports = async function handler(req, res) {
       }
 
       const presence = checkPresence(room);
-      if (!presence.bothPresent) {
-        return res.status(403).json({
-          error: 'Transfer paused: Mutual presence required. Both sender and receiver must stay on the page.',
-          presence,
-        });
-      }
 
       room.transferState = 'transferring';
       if (chunkIndex !== undefined && totalChunks !== undefined && chunkIndex + 1 >= totalChunks) {
@@ -120,12 +114,6 @@ module.exports = async function handler(req, res) {
       }
 
       const presence = checkPresence(room);
-      if (!presence.bothPresent) {
-        return res.status(403).json({
-          error: 'Transfer paused: Mutual presence required. Both peers must stay on the page.',
-          presence,
-        });
-      }
 
       // Dequeue up to 8 chunks at a time for fast streaming and accurate progress tracking
       const pulledChunks = room.chunks.splice(0, 8);

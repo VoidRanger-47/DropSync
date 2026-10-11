@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DropSync - Long-Distance E2EE File Transfer</title>
   <meta name="description" content="Secure, Zero-Knowledge End-to-End Encrypted File Transfer across any distance. Available strictly when transfer begins.">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -25,6 +26,14 @@
       --amber-warning: #F59E0B;
       --coral-error: #EF4444;
       --lavender: #FF3D00;
+    }
+
+    .logo-icon-img {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      box-shadow: 0 6px 18px rgba(255, 85, 0, 0.4);
+      object-fit: contain;
     }
 
     * {
@@ -503,7 +512,8 @@
     <!-- Header -->
     <div class="header">
       <div class="brand">
-        <div class="logo-icon">
+        <img src="/logo.png" alt="DropSync" class="logo-icon-img" onerror="this.style.display='none'; document.getElementById('fallback-logo').style.display='flex';" />
+        <div id="fallback-logo" class="logo-icon" style="display:none;">
           <svg viewBox="0 0 24 24">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="7 10 12 15 17 10"></polyline>

@@ -832,15 +832,22 @@ class _InternetTransferViewState extends State<InternetTransferView>
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: ElevatedButton.icon(
-                  onPressed: (_selectedFiles.isNotEmpty && widget.internetService.areBothPresent)
-                      ? _startSending
-                      : null,
+                  onPressed: _startSending,
                   icon: const Icon(Icons.lock_rounded, size: 18),
-                  label: const Text('Encrypt & Send Files (E2EE)'),
+                  label: Text(
+                    _selectedFiles.isEmpty
+                        ? 'Select Files to Send'
+                        : (!widget.internetService.areBothPresent
+                            ? 'Waiting for Receiver to Connect...'
+                            : 'Encrypt & Send Files (E2EE)'),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: (_selectedFiles.isNotEmpty && widget.internetService.areBothPresent)
                         ? Colors.transparent
                         : GeminiTheme.surfaceVariant,
+                    foregroundColor: (_selectedFiles.isNotEmpty && widget.internetService.areBothPresent)
+                        ? Colors.white
+                        : GeminiTheme.textSecondary,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),

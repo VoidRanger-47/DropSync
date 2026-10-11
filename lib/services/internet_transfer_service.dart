@@ -277,8 +277,8 @@ class InternetTransferService {
     final code = _currentRoomCode;
     if (code == null) return;
 
-    // Send HTTP Heartbeat to Vercel
-    _postJson('/api/heartbeat', {
+    // Send HTTP Heartbeat to Vercel (unified router)
+    _postJson('/api/room?action=heartbeat', {
       'roomCode': code,
       'peerId': _localPeerId,
       'role': _isSender ? 'sender' : 'receiver',
@@ -314,8 +314,8 @@ class InternetTransferService {
     final code = _currentRoomCode;
     if (code == null) return;
 
-    // Poll Vercel presence
-    _getJson('/api/heartbeat?roomCode=$code').then((data) {
+    // Poll Vercel presence (unified router)
+    _getJson('/api/room?action=heartbeat&roomCode=$code').then((data) {
       if (data != null && data['presence'] != null) {
         final pres = data['presence'] as Map<String, dynamic>;
         final both = pres['bothPresent'] as bool? ?? false;
@@ -422,8 +422,8 @@ class InternetTransferService {
       chunkIndex: 0,
     ));
 
-    // Submit header chunk to Vercel
-    _postJson('/api/chunk', {
+    // Submit header chunk to Vercel (unified router)
+    _postJson('/api/room?action=chunk', {
       'roomCode': code,
       'peerId': _localPeerId,
       'chunkIndex': 0,
@@ -466,7 +466,7 @@ class InternetTransferService {
       ));
 
       // Post chunk to Vercel relay
-      _postJson('/api/chunk', {
+      _postJson('/api/room?action=chunk', {
         'roomCode': code,
         'peerId': _localPeerId,
         'chunkIndex': chunkIndex++,
@@ -572,7 +572,7 @@ class InternetTransferService {
       // Check HTTP relay for pending chunks if in-memory queue is empty
       if (room.chunkQueue.isEmpty) {
         try {
-          final chunkData = await _getJson('/api/chunk?roomCode=$code');
+          final chunkData = await _getJson('/api/room?action=chunk&roomCode=$code');
           if (chunkData != null && chunkData['chunks'] != null) {
             final pulled = chunkData['chunks'] as List<dynamic>;
             for (final c in pulled) {

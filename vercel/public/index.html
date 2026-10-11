@@ -734,7 +734,7 @@
     async function sendHeartbeat(status = 'active') {
       if (!state.roomCode) return;
       try {
-        const res = await fetch('/api/heartbeat', {
+        const res = await fetch('/api/room?action=heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -803,7 +803,7 @@
       if (!state.roomCode || !state.derivedKey || state.isCompleted) return;
 
       try {
-        const res = await fetch(`/api/chunk?roomCode=${encodeURIComponent(state.roomCode)}`);
+        const res = await fetch(`/api/room?action=chunk&roomCode=${encodeURIComponent(state.roomCode)}`);
         if (res.status === 403) {
           transferStatusDot.className = 'status-dot paused';
           transferStatusText.innerText = 'Transfer paused: Mutual presence required. Both users must stay on page.';

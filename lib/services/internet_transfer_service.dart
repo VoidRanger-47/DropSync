@@ -422,8 +422,8 @@ class InternetTransferService {
       chunkIndex: 0,
     ));
 
-    // Submit header chunk to Vercel (unified router)
-    _postJson('/api/room?action=chunk', {
+    // Submit header chunk to Vercel (unified router) and await delivery
+    await _postJson('/api/room?action=chunk', {
       'roomCode': code,
       'peerId': _localPeerId,
       'chunkIndex': 0,
@@ -465,8 +465,8 @@ class InternetTransferService {
         chunkIndex: chunkIndex,
       ));
 
-      // Post chunk to Vercel relay
-      _postJson('/api/room?action=chunk', {
+      // Post chunk to Vercel relay and await transmission confirmation
+      await _postJson('/api/room?action=chunk', {
         'roomCode': code,
         'peerId': _localPeerId,
         'chunkIndex': chunkIndex++,
@@ -476,7 +476,7 @@ class InternetTransferService {
       }).catchError((_) => null);
 
       bytesTransferred += rawChunk.length;
-      final progress = (bytesTransferred / fileSize).clamp(0.0, 1.0);
+      final progress = fileSize > 0 ? (bytesTransferred / fileSize).clamp(0.0, 1.0) : 1.0;
       final elapsedSec = stopwatch.elapsedMilliseconds / 1000.0;
       final speedMBps = elapsedSec > 0 ? (bytesTransferred / (1024 * 1024)) / elapsedSec : 15.0;
       final remainingBytes = fileSize - bytesTransferred;

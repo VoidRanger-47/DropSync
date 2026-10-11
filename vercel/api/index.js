@@ -127,7 +127,8 @@ module.exports = async function handler(req, res) {
         });
       }
 
-      const pulledChunks = room.chunks.splice(0, 4);
+      // Dequeue up to 8 chunks at a time for fast streaming and accurate progress tracking
+      const pulledChunks = room.chunks.splice(0, 8);
       return res.status(200).json({
         chunks: pulledChunks,
         remaining: room.chunks.length,

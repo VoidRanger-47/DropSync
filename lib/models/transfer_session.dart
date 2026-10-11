@@ -93,7 +93,11 @@ class TransferSession {
 
   String get formattedSpeed => '${speedMBps.toStringAsFixed(1)} MB/s';
 
-  String get formattedProgress => '${(progress * 100).toStringAsFixed(0)}%';
+  String get formattedProgress {
+    if (progress >= 1.0) return '100%';
+    final pct = progress * 100;
+    return pct < 10.0 ? '${pct.toStringAsFixed(1)}%' : '${pct.toStringAsFixed(0)}%';
+  }
 
   String get formattedEta {
     if (etaSeconds <= 0) return '0s';

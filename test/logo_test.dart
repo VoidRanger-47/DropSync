@@ -60,5 +60,29 @@ void main() {
       expect(find.text('DROPSYNC'), findsOneWidget);
       await tester.pump(const Duration(milliseconds: 500));
     });
+
+    testWidgets('DropSyncLogo renders Image.asset when assetPath is provided', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: DropSyncLogo(
+                size: 64,
+                assetPath: 'assets/icon/dropsync_mark.png',
+                showText: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(find.byType(Image), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((widget) =>
+            widget is CustomPaint &&
+            widget.painter.runtimeType.toString() == '_DropSyncMarkPainter'),
+        findsNothing,
+      );
+    });
   });
 }

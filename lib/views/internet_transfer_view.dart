@@ -264,7 +264,7 @@ class _InternetTransferViewState extends State<InternetTransferView>
                 decoration: InputDecoration(
                   labelText: 'Vercel Deployment URL',
                   labelStyle: const TextStyle(color: GeminiTheme.cyan),
-                  hintText: 'https://dropsync-relay.vercel.app',
+                  hintText: 'https://dropsync-web.vercel.app',
                   hintStyle: const TextStyle(color: GeminiTheme.textMuted),
                   filled: true,
                   fillColor: GeminiTheme.surfaceVariant,

@@ -124,10 +124,14 @@ class _DropSyncLogoState extends State<DropSyncLogo>
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(markSize * 0.28),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                widget.animated
+            child: widget.assetPath != null
+                ? Image.asset(
+                    widget.assetPath!,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const SizedBox.shrink(),
+                  )
+                : (widget.animated
                     ? AnimatedBuilder(
                         animation: _animController,
                         builder: (context, child) {
@@ -146,15 +150,7 @@ class _DropSyncLogoState extends State<DropSyncLogo>
                           progress: 0.0,
                           showGlow: widget.showGlow,
                         ),
-                      ),
-                Image.asset(
-                  widget.assetPath ?? 'assets/icon/dropsync_mark_transparent.png',
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                      const SizedBox.shrink(),
-                ),
-              ],
-            ),
+                      )),
           ),
         ),
 

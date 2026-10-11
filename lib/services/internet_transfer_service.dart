@@ -49,7 +49,7 @@ class InternetTransferService {
   bool _isSender = false;
   String _localPeerId = '';
   String _remotePeerId = '';
-  String _customVercelUrl = 'https://dropsync-relay.vercel.app';
+  String _customVercelUrl = 'https://dropsync-web.vercel.app';
 
   // Presence & Heartbeat
   bool _isLocalOnPage = true;

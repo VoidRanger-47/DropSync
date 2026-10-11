@@ -28,7 +28,7 @@ class DropSyncLogo extends StatefulWidget {
     this.showText = true,
     this.showGlow = true,
     this.animated = false,
-    this.backgroundColor = const Color(0xFF172062),
+    this.backgroundColor = const Color(0xFF16120E),
     this.assetPath,
   });
 
@@ -103,7 +103,7 @@ class _DropSyncLogoState extends State<DropSyncLogo>
             color: widget.backgroundColor,
             borderRadius: BorderRadius.circular(markSize * 0.28),
             border: Border.all(
-              color: Colors.white.withOpacity(0.08),
+              color: const Color(0xFFFF5500).withOpacity(0.35),
               width: 1.5,
             ),
             boxShadow: [
@@ -113,10 +113,10 @@ class _DropSyncLogoState extends State<DropSyncLogo>
                 blurRadius: markSize * 0.25,
                 offset: Offset(0, markSize * 0.12),
               ),
-              // Subtle outer cyan/teal ambient bloom
+              // Subtle outer orange/amber ambient bloom
               if (widget.showGlow)
                 BoxShadow(
-                  color: const Color(0xFF00D2FF).withOpacity(0.25),
+                  color: const Color(0xFFFF5500).withOpacity(0.35),
                   blurRadius: markSize * 0.35,
                   spreadRadius: markSize * 0.02,
                 ),
@@ -172,7 +172,7 @@ class _DropSyncLogoState extends State<DropSyncLogo>
               height: 1.1,
               shadows: [
                 Shadow(
-                  color: const Color(0xFF00D2FF).withOpacity(0.4),
+                  color: const Color(0xFFFF5500).withOpacity(0.4),
                   blurRadius: 10,
                   offset: const Offset(0, 2),
                 ),
@@ -183,7 +183,7 @@ class _DropSyncLogoState extends State<DropSyncLogo>
           Text(
             'HIGH-SPEED P2P SYNC',
             style: TextStyle(
-              color: const Color(0xFF00F29D).withOpacity(0.75),
+              color: const Color(0xFFFF7A00).withOpacity(0.85),
               fontSize: fontSize * 0.42,
               fontWeight: FontWeight.w600,
               letterSpacing: letterSpacing * 0.6,
@@ -196,7 +196,7 @@ class _DropSyncLogoState extends State<DropSyncLogo>
 }
 
 /// CustomPainter rendering the fluid infinity-droplet loop with two interconnected flow arrows
-/// and a vibrant Cyan (#00D2FF) to Emerald-Teal (#00F29D) gradient.
+/// and a vibrant Cyberpunk Neon Orange (#FF5500) to Warm Amber (#FF7A00) gradient.
 class _DropSyncMarkPainter extends CustomPainter {
   final double progress;
   final bool showGlow;
@@ -226,9 +226,9 @@ class _DropSyncMarkPainter extends CustomPainter {
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
       colors: [
-        Color(0xFF00D2FF), // Vibrant Cyan
-        Color(0xFF00E5C9), // Aquamarine transition
-        Color(0xFF00F29D), // Emerald Teal
+        Color(0xFFFF5500), // Electric Neon Orange
+        Color(0xFFFF7A00), // Warm Amber
+        Color(0xFFFF3D00), // Cyber Ember
       ],
       stops: [0.0, 0.5, 1.0],
     ).createShader(Rect.fromLTWH(w * 0.15, h * 0.15, w * 0.7, h * 0.7));
@@ -240,7 +240,7 @@ class _DropSyncMarkPainter extends CustomPainter {
         ..strokeWidth = strokeWidth * 1.5
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..color = const Color(0xFF00D2FF).withOpacity(0.28)
+        ..color = const Color(0xFFFF5500).withOpacity(0.35)
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, w * 0.08);
 
       _drawInterconnectedLoop(canvas, size, glowPaint);

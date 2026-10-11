@@ -10,21 +10,21 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg-void: #090A0D;
-      --bg-surface: #12141A;
-      --bg-surface-elevated: #181B24;
+      --bg-void: #0C0C0E;
+      --bg-surface: #151518;
+      --bg-surface-elevated: #1D1D22;
       --border-subtle: rgba(255, 255, 255, 0.08);
-      --border-glow: rgba(78, 130, 238, 0.25);
-      --text-primary: #F0F4FC;
-      --text-secondary: #9AA0B4;
-      --text-muted: #62677B;
-      --blue-electric: #4E82EE;
-      --cyan-neon: #60A5FA;
-      --cyan-bright: #38BDF8;
-      --emerald-green: #34D399;
-      --amber-warning: #FBBF24;
-      --coral-error: #F87171;
-      --lavender: #A78BFA;
+      --border-glow: rgba(255, 85, 0, 0.35);
+      --text-primary: #F4F4F5;
+      --text-secondary: #A1A1AA;
+      --text-muted: #71717A;
+      --blue-electric: #FF5500;
+      --cyan-neon: #FF7A00;
+      --cyan-bright: #FFA033;
+      --emerald-green: #10B981;
+      --amber-warning: #F59E0B;
+      --coral-error: #EF4444;
+      --lavender: #FF3D00;
     }
 
     * {
@@ -53,7 +53,7 @@
       position: fixed;
       border-radius: 50%;
       filter: blur(120px);
-      opacity: 0.2;
+      opacity: 0.18;
       pointer-events: none;
       z-index: 0;
     }
@@ -78,13 +78,13 @@
       z-index: 10;
       width: 100%;
       max-width: 520px;
-      background: rgba(18, 20, 26, 0.88);
+      background: rgba(21, 21, 24, 0.92);
       backdrop-filter: blur(28px);
       -webkit-backdrop-filter: blur(28px);
       border: 1px solid var(--border-subtle);
       border-radius: 28px;
       padding: 32px 28px;
-      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.04);
       animation: fadeIn 0.4s ease-out;
     }
 
@@ -115,7 +115,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 6px 18px rgba(78, 130, 238, 0.4);
+      box-shadow: 0 6px 18px rgba(255, 85, 0, 0.4);
     }
 
     .logo-icon svg {
@@ -147,8 +147,8 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      background: rgba(52, 211, 153, 0.12);
-      border: 1px solid rgba(52, 211, 153, 0.25);
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.25);
       color: var(--emerald-green);
       font-size: 11px;
       font-weight: 600;
@@ -218,7 +218,7 @@
 
     .code-input:focus {
       border-color: var(--blue-electric);
-      box-shadow: 0 0 0 3px rgba(78, 130, 238, 0.2);
+      box-shadow: 0 0 0 3px rgba(255, 85, 0, 0.25);
     }
 
     .btn-connect {
@@ -248,7 +248,7 @@
       padding: 28px 16px;
       border: 1px dashed rgba(255, 255, 255, 0.12);
       border-radius: 20px;
-      background: rgba(24, 27, 36, 0.4);
+      background: rgba(29, 29, 34, 0.5);
       margin-bottom: 18px;
     }
 
@@ -257,18 +257,18 @@
       height: 72px;
       margin: 0 auto 16px;
       border-radius: 50%;
-      background: radial-gradient(circle, rgba(78, 130, 238, 0.18), rgba(24, 27, 36, 0.8));
-      border: 1px solid rgba(78, 130, 238, 0.35);
+      background: radial-gradient(circle, rgba(255, 85, 0, 0.18), rgba(21, 21, 24, 0.8));
+      border: 1px solid rgba(255, 85, 0, 0.35);
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 0 28px rgba(78, 130, 238, 0.25);
+      box-shadow: 0 0 28px rgba(255, 85, 0, 0.25);
       animation: pulseShield 3s ease-in-out infinite;
     }
 
     @keyframes pulseShield {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(78, 130, 238, 0.25); }
-      50% { transform: scale(1.05); box-shadow: 0 0 38px rgba(96, 165, 250, 0.45); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(255, 85, 0, 0.25); }
+      50% { transform: scale(1.05); box-shadow: 0 0 38px rgba(255, 122, 0, 0.45); }
     }
 
     .shield-icon svg {
@@ -304,7 +304,7 @@
       font-family: 'JetBrains Mono', monospace;
       font-size: 13px;
       color: var(--cyan-bright);
-      border: 1px solid rgba(56, 189, 248, 0.25);
+      border: 1px solid rgba(255, 122, 0, 0.25);
     }
 
     .pulse-ring {
@@ -312,14 +312,14 @@
       height: 8px;
       border-radius: 50%;
       background: var(--cyan-bright);
-      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+      box-shadow: 0 0 0 0 rgba(255, 122, 0, 0.7);
       animation: ripple 1.6s infinite;
     }
 
     @keyframes ripple {
-      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
-      70% { box-shadow: 0 0 0 9px rgba(56, 189, 248, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(255, 122, 0, 0.7); }
+      70% { box-shadow: 0 0 0 9px rgba(255, 122, 0, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 122, 0, 0); }
     }
 
     /* Active Transfer Screen */
@@ -342,8 +342,8 @@
       width: 44px;
       height: 44px;
       border-radius: 12px;
-      background: rgba(78, 130, 238, 0.15);
-      border: 1px solid rgba(78, 130, 238, 0.3);
+      background: rgba(255, 85, 0, 0.15);
+      border: 1px solid rgba(255, 85, 0, 0.3);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -394,7 +394,7 @@
       background: linear-gradient(90deg, var(--blue-electric), var(--cyan-bright));
       border-radius: 100px;
       transition: width 0.2s ease;
-      box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+      box-shadow: 0 0 12px rgba(255, 85, 0, 0.6);
     }
 
     .transfer-stats {
@@ -459,7 +459,7 @@
       justify-content: center;
       gap: 8px;
       transition: all 0.2s;
-      box-shadow: 0 4px 16px rgba(78, 130, 238, 0.3);
+      box-shadow: 0 4px 16px rgba(255, 85, 0, 0.35);
     }
 
     .btn-action:hover {
@@ -482,12 +482,12 @@
     }
 
     .security-callout {
-      background: rgba(167, 139, 250, 0.08);
-      border: 1px solid rgba(167, 139, 250, 0.2);
+      background: rgba(255, 85, 0, 0.08);
+      border: 1px solid rgba(255, 85, 0, 0.2);
       border-radius: 12px;
       padding: 10px 14px;
       font-size: 11px;
-      color: var(--lavender);
+      color: var(--cyan-neon);
       display: flex;
       align-items: center;
       gap: 8px;

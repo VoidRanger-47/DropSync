@@ -2,26 +2,29 @@ import 'package:flutter/material.dart';
 
 /// Design tokens and styling for the DropSync Gemini Aesthetic.
 class GeminiTheme {
-  // Core Color Palette
-  static const Color deepVoid = Color(0xFF0E0E10);
-  static const Color surfaceContainer = Color(0xFF1E1F22);
-  static const Color surfaceVariant = Color(0xFF28292A);
-  static const Color surfaceElevated = Color(0xFF333538);
+  // Core Color Palette - Obsidian Void Aesthetic from V.O.I.D. Cognitive OS
+  static const Color deepVoid = Color(0xFF0C0C0E); // Deepest obsidian void black
+  static const Color surfaceContainer = Color(0xFF161619); // Dark matte container
+  static const Color surfaceVariant = Color(0xFF1E1E23); // Elevated container / cards
+  static const Color surfaceElevated = Color(0xFF28282E); // Highest elevation
 
-  // Gemini Glow Gradients & Accents
-  static const Color electricBlue = Color(0xFF4E75FF);
-  static const Color cyan = Color(0xFF56C5FE);
-  static const Color lavender = Color(0xFF9B72CF);
-  static const Color emeraldGreen = Color(0xFF34D399);
-  static const Color amberWarning = Color(0xFFFBBF24);
-  static const Color coralError = Color(0xFFF87171);
+  // V.O.I.D. Cyberpunk Electric Orange & Amber Glow Accents
+  static const Color electricBlue = Color(0xFFFF5500); // Primary Electric Neon Orange (#FF5500)
+  static const Color cyan = Color(0xFFFF7A00); // Secondary Warm Tangerine / Amber (#FF7A00)
+  static const Color lavender = Color(0xFFFF3D00); // Tertiary Cyberpunk Ember (#FF3D00)
+  static const Color neonOrange = Color(0xFFFF5500);
+  static const Color neonAmber = Color(0xFFFF7A00);
+  static const Color cyberEmber = Color(0xFFFF3D00);
+  static const Color emeraldGreen = Color(0xFF10B981); // Emerald Green status (Offline 100% Local)
+  static const Color amberWarning = Color(0xFFF59E0B);
+  static const Color coralError = Color(0xFFEF4444); // Soft coral error / wipe memory
 
   // Typography Colors
   static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF9AA0A6);
-  static const Color textMuted = Color(0xFF6B7280);
+  static const Color textSecondary = Color(0xFFA1A1AA);
+  static const Color textMuted = Color(0xFF71717A);
 
-  // Signature Gemini Glow Gradients
+  // Signature Glow Gradients (Neon Orange -> Warm Amber -> Cyber Ember)
   static const LinearGradient geminiGlowGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
@@ -45,8 +48,8 @@ class GeminiTheme {
   static const SweepGradient radarSweepGradient = SweepGradient(
     colors: [
       Colors.transparent,
-      Color(0x3356C5FE),
-      Color(0x884E75FF),
+      Color(0x33FF7A00),
+      Color(0x88FF5500),
       cyan,
     ],
     stops: [0.0, 0.4, 0.8, 1.0],

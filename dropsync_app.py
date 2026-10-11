@@ -53,7 +53,7 @@ class DropSyncAppUI:
         self.root.title("DropSync - Local P2P Sharing")
         self.root.geometry("780x720")
         self.root.minsize(680, 600)
-        self.root.configure(bg="#0E0E10")
+        self.root.configure(bg="#0C0C0E")
 
         # Set App Icon
         self._apply_icon()
@@ -100,59 +100,60 @@ class DropSyncAppUI:
         self.style = ttk.Style()
         self.style.theme_use("clam")
 
-        # Gemini Cinematic Colors
-        bg_dark = "#0E0E10"
-        card_bg = "#1E1F22"
-        accent_blue = "#4E75FF"
+        # V.O.I.D. Cognitive OS Obsidian & Cyberpunk Neon Orange Colors
+        bg_dark = "#0C0C0E"
+        card_bg = "#151518"
+        accent_orange = "#FF5500"
+        accent_amber = "#FF7A00"
         text_white = "#FFFFFF"
 
         self.style.configure(".", background=bg_dark, foreground=text_white)
         self.style.configure("Card.TFrame", background=card_bg, relief="flat")
         self.style.configure(
             "Accent.TButton",
-            background=accent_blue,
+            background=accent_orange,
             foreground="#FFFFFF",
             font=("Segoe UI", 10, "bold"),
             borderwidth=0,
             padding=7,
         )
-        self.style.map("Accent.TButton", background=[("active", "#56C5FE"), ("pressed", "#3A5FCC")])
+        self.style.map("Accent.TButton", background=[("active", accent_amber), ("pressed", "#FF3D00")])
 
         self.style.configure(
             "Secondary.TButton",
-            background="#252F3F",
+            background="#1E1E23",
             foreground="#FFFFFF",
             font=("Segoe UI", 9),
             borderwidth=0,
             padding=6,
         )
-        self.style.map("Secondary.TButton", background=[("active", "#374151")])
+        self.style.map("Secondary.TButton", background=[("active", "#2C2C34")])
 
         self.style.configure(
             "Gemini.Horizontal.TProgressbar",
-            troughcolor="#0E0E10",
-            background="#56C5FE",
-            bordercolor="#1E1F22",
-            lightcolor="#56C5FE",
-            darkcolor="#4E75FF",
+            troughcolor="#0C0C0E",
+            background=accent_orange,
+            bordercolor="#151518",
+            lightcolor=accent_amber,
+            darkcolor="#FF3D00",
         )
 
     def _build_widgets(self):
         # 1. Top Navbar Header
-        nav_frame = tk.Frame(self.root, bg="#131314", padx=20, pady=14, highlightthickness=1, highlightbackground="#2B2D31")
+        nav_frame = tk.Frame(self.root, bg="#111113", padx=20, pady=14, highlightthickness=1, highlightbackground="#26262B")
         nav_frame.pack(fill="x", side="top")
 
-        left_nav = tk.Frame(nav_frame, bg="#131314")
+        left_nav = tk.Frame(nav_frame, bg="#111113")
         left_nav.pack(side="left")
 
-        lbl_logo = tk.Label(left_nav, text="⚡ DropSync", font=("Segoe UI", 16, "bold"), bg="#131314", fg="#56C5FE")
+        lbl_logo = tk.Label(left_nav, text="⚡ DropSync", font=("Segoe UI", 16, "bold"), bg="#111113", fg="#FF7A00")
         lbl_logo.pack(side="left", padx=(0, 10))
 
         pc_name = platform.node() or "Windows-PC"
-        lbl_pc = tk.Label(left_nav, text=f"•  {pc_name}", font=("Segoe UI", 11), bg="#131314", fg="#94A3B8")
+        lbl_pc = tk.Label(left_nav, text=f"•  {pc_name}", font=("Segoe UI", 11), bg="#111113", fg="#A1A1AA")
         lbl_pc.pack(side="left")
 
-        right_nav = tk.Frame(nav_frame, bg="#131314")
+        right_nav = tk.Frame(nav_frame, bg="#111113")
         right_nav.pack(side="right")
 
         self.local_ip = _get_primary_ip()
@@ -160,54 +161,54 @@ class DropSyncAppUI:
             right_nav,
             text=f"● {self.local_ip}",
             font=("Consolas", 10, "bold"),
-            bg="#1E1F22",
+            bg="#1A1A1E",
             fg="#10B981",
             padx=10,
             pady=4,
             highlightthickness=1,
-            highlightbackground="#2B2D31",
+            highlightbackground="#26262B",
         )
         lbl_ip_pill.pack(side="right", padx=(8, 0))
 
         btn_folder = ttk.Button(right_nav, text="📁 Downloads", style="Secondary.TButton", command=self._open_downloads_folder)
         btn_folder.pack(side="right")
 
-        # 2. Gemini Role Selection Pill Switcher
-        tab_container = tk.Frame(self.root, bg="#0E0E10", pady=10)
+        # 2. V.O.I.D. Role Selection Pill Switcher
+        tab_container = tk.Frame(self.root, bg="#0C0C0E", pady=10)
         tab_container.pack(fill="x")
 
-        switcher_frame = tk.Frame(tab_container, bg="#1E1F22", padx=4, pady=4, highlightthickness=1, highlightbackground="#2B2D31")
+        switcher_frame = tk.Frame(tab_container, bg="#151518", padx=4, pady=4, highlightthickness=1, highlightbackground="#26262B")
         switcher_frame.pack(anchor="center")
 
         self.btn_tab_send = tk.Button(
             switcher_frame, text="📤 Send Files", font=("Segoe UI", 10, "bold"),
-            bg="#4E75FF", fg="#FFFFFF", relief="flat", padx=16, pady=6, cursor="hand2",
+            bg="#FF5500", fg="#FFFFFF", relief="flat", padx=16, pady=6, cursor="hand2",
             command=lambda: self._set_role("send")
         )
         self.btn_tab_send.pack(side="left", padx=2)
 
         self.btn_tab_receive = tk.Button(
             switcher_frame, text="📥 Receive / QR", font=("Segoe UI", 10),
-            bg="#1E1F22", fg="#A1A1AA", relief="flat", padx=16, pady=6, cursor="hand2",
+            bg="#151518", fg="#A1A1AA", relief="flat", padx=16, pady=6, cursor="hand2",
             command=lambda: self._set_role("receive")
         )
         self.btn_tab_receive.pack(side="left", padx=2)
 
         self.btn_tab_dual = tk.Button(
             switcher_frame, text="⚡ Dual / Clipboard", font=("Segoe UI", 10),
-            bg="#1E1F22", fg="#A1A1AA", relief="flat", padx=16, pady=6, cursor="hand2",
+            bg="#151518", fg="#A1A1AA", relief="flat", padx=16, pady=6, cursor="hand2",
             command=lambda: self._set_role("dual")
         )
         self.btn_tab_dual.pack(side="left", padx=2)
 
         # 3. Main Dynamic Content Container
-        self.content_container = tk.Frame(self.root, bg="#0E0E10", padx=20)
+        self.content_container = tk.Frame(self.root, bg="#0C0C0E", padx=20)
         self.content_container.pack(fill="both", expand=True)
 
         # Frames for the three roles
-        self.frame_send = tk.Frame(self.content_container, bg="#0E0E10")
-        self.frame_receive = tk.Frame(self.content_container, bg="#0E0E10")
-        self.frame_dual = tk.Frame(self.content_container, bg="#0E0E10")
+        self.frame_send = tk.Frame(self.content_container, bg="#0C0C0E")
+        self.frame_receive = tk.Frame(self.content_container, bg="#0C0C0E")
+        self.frame_dual = tk.Frame(self.content_container, bg="#0C0C0E")
 
         self._build_send_view()
         self._build_receive_view()
@@ -217,16 +218,16 @@ class DropSyncAppUI:
         self._set_role("send")
 
         # 4. Bottom Active Transfer & Status Footer
-        self.footer_card = tk.Frame(self.root, bg="#18191C", padx=18, pady=12, highlightthickness=1, highlightbackground="#2B2D31")
+        self.footer_card = tk.Frame(self.root, bg="#151518", padx=18, pady=12, highlightthickness=1, highlightbackground="#26262B")
         self.footer_card.pack(fill="x", side="bottom")
 
-        self.lbl_transfer_name = tk.Label(self.footer_card, text="Ready for local transfers", font=("Segoe UI", 10, "bold"), bg="#18191C", fg="#94A3B8")
+        self.lbl_transfer_name = tk.Label(self.footer_card, text="Ready for local transfers", font=("Segoe UI", 10, "bold"), bg="#151518", fg="#A1A1AA")
         self.lbl_transfer_name.pack(anchor="w")
 
         self.progress_bar = ttk.Progressbar(self.footer_card, style="Gemini.Horizontal.TProgressbar", length=100, mode="determinate")
         self.progress_bar.pack(fill="x", pady=(6, 4))
 
-        self.lbl_transfer_stats = tk.Label(self.footer_card, text="Engine listening on Port 52525", font=("Segoe UI", 9), bg="#18191C", fg="#64748B")
+        self.lbl_transfer_stats = tk.Label(self.footer_card, text="Engine listening on Port 52525", font=("Segoe UI", 9), bg="#151518", fg="#71717A")
         self.lbl_transfer_stats.pack(anchor="w")
 
     def _set_role(self, role: str):
@@ -234,18 +235,18 @@ class DropSyncAppUI:
 
         # Update tab button styles
         self.btn_tab_send.config(
-            bg="#4E75FF" if role == "send" else "#1E1F22",
+            bg="#FF5500" if role == "send" else "#151518",
             fg="#FFFFFF" if role == "send" else "#A1A1AA",
             font=("Segoe UI", 10, "bold" if role == "send" else "normal")
         )
         self.btn_tab_receive.config(
-            bg="#9B72CF" if role == "receive" else "#1E1F22",
+            bg="#FF7A00" if role == "receive" else "#151518",
             fg="#FFFFFF" if role == "receive" else "#A1A1AA",
             font=("Segoe UI", 10, "bold" if role == "receive" else "normal")
         )
         self.btn_tab_dual.config(
-            bg="#56C5FE" if role == "dual" else "#1E1F22",
-            fg="#0E0E10" if role == "dual" else "#A1A1AA",
+            bg="#FF3D00" if role == "dual" else "#151518",
+            fg="#FFFFFF" if role == "dual" else "#A1A1AA",
             font=("Segoe UI", 10, "bold" if role == "dual" else "normal")
         )
 
@@ -267,13 +268,13 @@ class DropSyncAppUI:
     # -------------------------------------------------------------------------
     def _build_send_view(self):
         # 1. File Selection Drop Zone Card
-        file_card = tk.Frame(self.frame_send, bg="#1E1F22", padx=18, pady=16, highlightthickness=1, highlightbackground="#2B2D31")
+        file_card = tk.Frame(self.frame_send, bg="#151518", padx=18, pady=16, highlightthickness=1, highlightbackground="#26262B")
         file_card.pack(fill="x", pady=(0, 12))
 
-        top_file_row = tk.Frame(file_card, bg="#1E1F22")
+        top_file_row = tk.Frame(file_card, bg="#151518")
         top_file_row.pack(fill="x")
 
-        lbl_f_title = tk.Label(top_file_row, text="📁 File to Send", font=("Segoe UI", 11, "bold"), bg="#1E1F22", fg="#FFFFFF")
+        lbl_f_title = tk.Label(top_file_row, text="📁 File to Send", font=("Segoe UI", 11, "bold"), bg="#151518", fg="#FFFFFF")
         lbl_f_title.pack(side="left")
 
         self.btn_clear_file = ttk.Button(top_file_row, text="Clear", style="Secondary.TButton", command=self._clear_selected_file)
@@ -283,28 +284,28 @@ class DropSyncAppUI:
             file_card,
             text="No file selected • Click 'Browse File' to pick photos, videos, or documents",
             font=("Segoe UI", 9),
-            bg="#1E1F22",
-            fg="#94A3B8",
+            bg="#151518",
+            fg="#A1A1AA",
             wraplength=600,
         )
         self.lbl_selected_file.pack(anchor="w", pady=(8, 10))
 
-        btn_row = tk.Frame(file_card, bg="#1E1F22")
+        btn_row = tk.Frame(file_card, bg="#151518")
         btn_row.pack(fill="x")
 
         ttk.Button(btn_row, text="Browse File...", style="Accent.TButton", command=self._browse_file).pack(side="left")
         ttk.Button(btn_row, text="+ Connect by IP / Token", style="Secondary.TButton", command=self._show_manual_connect_dialog).pack(side="left", padx=(10, 0))
 
         # 2. Discovered Devices (Radar)
-        lbl_radar_title = tk.Label(self.frame_send, text="Nearby Discovered Devices", font=("Segoe UI", 12, "bold"), bg="#0E0E10", fg="#E2E8F0")
+        lbl_radar_title = tk.Label(self.frame_send, text="Nearby Discovered Devices", font=("Segoe UI", 12, "bold"), bg="#0C0C0E", fg="#FFFFFF")
         lbl_radar_title.pack(anchor="w", pady=(6, 6))
 
-        peers_container = tk.Frame(self.frame_send, bg="#1E1F22", highlightthickness=1, highlightbackground="#2B2D31")
+        peers_container = tk.Frame(self.frame_send, bg="#151518", highlightthickness=1, highlightbackground="#26262B")
         peers_container.pack(fill="both", expand=True)
 
-        self.canvas_peers = tk.Canvas(peers_container, bg="#1E1F22", highlightthickness=0)
+        self.canvas_peers = tk.Canvas(peers_container, bg="#151518", highlightthickness=0)
         self.scrollbar = ttk.Scrollbar(peers_container, orient="vertical", command=self.canvas_peers.yview)
-        self.peers_scroll_frame = tk.Frame(self.canvas_peers, bg="#1E1F22")
+        self.peers_scroll_frame = tk.Frame(self.canvas_peers, bg="#151518")
 
         self.peers_scroll_frame.bind("<Configure>", lambda e: self.canvas_peers.configure(scrollregion=self.canvas_peers.bbox("all")))
         self.canvas_window = self.canvas_peers.create_window((0, 0), window=self.peers_scroll_frame, anchor="nw")
@@ -318,8 +319,8 @@ class DropSyncAppUI:
             self.peers_scroll_frame,
             text="Searching for DropSync devices on local Wi-Fi...\nOpen DropSync on your Android phone or another PC on the same Wi-Fi.\n(Or click '+ Connect by IP / Token' above)",
             font=("Segoe UI", 11),
-            bg="#1E1F22",
-            fg="#64748B",
+            bg="#151518",
+            fg="#71717A",
             pady=40,
         )
         self.lbl_empty_peers.pack(fill="both", expand=True)
@@ -330,19 +331,19 @@ class DropSyncAppUI:
             self.selected_file_path = filepath
             size_mb = os.path.getsize(filepath) / (1024 * 1024)
             name = os.path.basename(filepath)
-            self.lbl_selected_file.config(text=f"Ready to send: {name} ({size_mb:.2f} MB)", fg="#56C5FE")
+            self.lbl_selected_file.config(text=f"Ready to send: {name} ({size_mb:.2f} MB)", fg="#FFA033")
             self.btn_clear_file.pack(side="right")
 
     def _clear_selected_file(self):
         self.selected_file_path = None
-        self.lbl_selected_file.config(text="No file selected • Click 'Browse File' to pick photos, videos, or documents", fg="#94A3B8")
+        self.lbl_selected_file.config(text="No file selected • Click 'Browse File' to pick photos, videos, or documents", fg="#A1A1AA")
         self.btn_clear_file.pack_forget()
 
     # -------------------------------------------------------------------------
     # RECEIVE VIEW BUILDER (QR CODE & TOKEN)
     # -------------------------------------------------------------------------
     def _build_receive_view(self):
-        center_card = tk.Frame(self.frame_receive, bg="#1E1F22", padx=24, pady=20, highlightthickness=1, highlightbackground="#2B2D31")
+        center_card = tk.Frame(self.frame_receive, bg="#151518", padx=24, pady=20, highlightthickness=1, highlightbackground="#26262B")
         center_card.pack(fill="both", expand=True)
 
         # Standby status
@@ -350,12 +351,12 @@ class DropSyncAppUI:
             center_card,
             text="● Standby Mode • Ready to receive incoming files",
             font=("Segoe UI", 10, "bold"),
-            bg="#131314",
+            bg="#111113",
             fg="#10B981",
             padx=14,
             pady=6,
             highlightthickness=1,
-            highlightbackground="#2B2D31",
+            highlightbackground="#26262B",
         )
         lbl_standby.pack(anchor="center", pady=(0, 16))
 
@@ -367,22 +368,22 @@ class DropSyncAppUI:
             center_card,
             text="Scan with the DropSync mobile app to pair & send files immediately",
             font=("Segoe UI", 10),
-            bg="#1E1F22",
-            fg="#94A3B8",
+            bg="#151518",
+            fg="#A1A1AA",
         )
         lbl_scan_hint.pack(anchor="center", pady=(6, 16))
 
         # Pairing Token Box
-        token_box = tk.Frame(center_card, bg="#0E0E10", padx=16, pady=12, highlightthickness=1, highlightbackground="#2B2D31")
+        token_box = tk.Frame(center_card, bg="#0C0C0E", padx=16, pady=12, highlightthickness=1, highlightbackground="#26262B")
         token_box.pack(fill="x", padx=40)
 
-        lbl_t_header = tk.Label(token_box, text="Session Pairing Token", font=("Segoe UI", 9), bg="#0E0E10", fg="#64748B")
+        lbl_t_header = tk.Label(token_box, text="Session Pairing Token", font=("Segoe UI", 9), bg="#0C0C0E", fg="#71717A")
         lbl_t_header.pack(anchor="w")
 
-        token_row = tk.Frame(token_box, bg="#0E0E10")
+        token_row = tk.Frame(token_box, bg="#0C0C0E")
         token_row.pack(fill="x", pady=(4, 0))
 
-        self.lbl_token = tk.Label(token_row, text="A  7  B  3  X  9", font=("Consolas", 18, "bold"), bg="#0E0E10", fg="#56C5FE")
+        self.lbl_token = tk.Label(token_row, text="A  7  B  3  X  9", font=("Consolas", 18, "bold"), bg="#0C0C0E", fg="#FFA033")
         self.lbl_token.pack(side="left")
 
         ttk.Button(token_row, text="Copy Token", style="Secondary.TButton", command=self._copy_token).pack(side="right")
@@ -403,7 +404,7 @@ class DropSyncAppUI:
             )
             qr.add_data(payload_str)
             qr.make(fit=True)
-            img = qr.make_image(fill_color="#0E0E10", back_color="#FFFFFF")
+            img = qr.make_image(fill_color="#0C0C0E", back_color="#FFFFFF")
             self.qr_photo = ImageTk.PhotoImage(img)
             self.lbl_qr.config(image=self.qr_photo)
         except Exception as e:
@@ -424,18 +425,18 @@ class DropSyncAppUI:
     # DUAL VIEW BUILDER (CLIPBOARD + STATUS)
     # -------------------------------------------------------------------------
     def _build_dual_view(self):
-        clip_card = tk.Frame(self.frame_dual, bg="#1E1F22", padx=18, pady=16, highlightthickness=1, highlightbackground="#2B2D31")
+        clip_card = tk.Frame(self.frame_dual, bg="#151518", padx=18, pady=16, highlightthickness=1, highlightbackground="#26262B")
         clip_card.pack(fill="x", pady=(0, 12))
 
-        clip_header = tk.Frame(clip_card, bg="#1E1F22")
+        clip_header = tk.Frame(clip_card, bg="#151518")
         clip_header.pack(fill="x")
 
-        lbl_clip_title = tk.Label(clip_header, text="📋 Synced Clipboard Text", font=("Segoe UI", 11, "bold"), bg="#1E1F22", fg="#56C5FE")
+        lbl_clip_title = tk.Label(clip_header, text="📋 Synced Clipboard Text", font=("Segoe UI", 11, "bold"), bg="#151518", fg="#FF7A00")
         lbl_clip_title.pack(side="left")
 
         ttk.Button(clip_header, text="Copy to System", style="Secondary.TButton", command=self._copy_clip_to_system).pack(side="right")
 
-        self.txt_clipboard = tk.Text(clip_card, height=4, bg="#0E0E10", fg="#F8FAFC", font=("Consolas", 10), relief="flat", padx=10, pady=8, wrap="word")
+        self.txt_clipboard = tk.Text(clip_card, height=4, bg="#0C0C0E", fg="#F4F4F5", font=("Consolas", 10), relief="flat", padx=10, pady=8, wrap="word")
         self.txt_clipboard.pack(fill="x", pady=(10, 0))
         self.txt_clipboard.insert("1.0", "Copied text on PC or Android will sync here in real time.")
 
@@ -485,19 +486,19 @@ class DropSyncAppUI:
         dialog = tk.Toplevel(self.root)
         dialog.title("Connect via IP / Token")
         dialog.geometry("380x230")
-        dialog.configure(bg="#1E1F22")
+        dialog.configure(bg="#151518")
         dialog.transient(self.root)
         dialog.grab_set()
 
-        tk.Label(dialog, text="Enter Receiver's IP & Token:", font=("Segoe UI", 11, "bold"), bg="#1E1F22", fg="#FFFFFF").pack(pady=(16, 4))
-        tk.Label(dialog, text="(Shown on the Receive tab of other device)", font=("Segoe UI", 8), bg="#1E1F22", fg="#94A3B8").pack(pady=(0, 10))
+        tk.Label(dialog, text="Enter Receiver's IP & Token:", font=("Segoe UI", 11, "bold"), bg="#151518", fg="#FFFFFF").pack(pady=(16, 4))
+        tk.Label(dialog, text="(Shown on the Receive tab of other device)", font=("Segoe UI", 8), bg="#151518", fg="#A1A1AA").pack(pady=(0, 10))
 
-        entry_ip = tk.Entry(dialog, font=("Segoe UI", 11), justify="center", bg="#0E0E10", fg="#FFFFFF", insertbackground="#56C5FE")
+        entry_ip = tk.Entry(dialog, font=("Segoe UI", 11), justify="center", bg="#0C0C0E", fg="#FFFFFF", insertbackground="#FF7A00")
         entry_ip.insert(0, "192.168.")
         entry_ip.pack(fill="x", padx=30, pady=4)
         entry_ip.focus()
 
-        entry_token = tk.Entry(dialog, font=("Segoe UI", 11), justify="center", bg="#0E0E10", fg="#56C5FE", insertbackground="#56C5FE")
+        entry_token = tk.Entry(dialog, font=("Segoe UI", 11), justify="center", bg="#0C0C0E", fg="#FFA033", insertbackground="#FFA033")
         entry_token.insert(0, "Token")
         entry_token.pack(fill="x", padx=30, pady=4)
 
@@ -533,28 +534,28 @@ class DropSyncAppUI:
                 self.peers_scroll_frame,
                 text="Searching for DropSync devices on local Wi-Fi...\nOpen DropSync on your Android phone or another PC.",
                 font=("Segoe UI", 11),
-                bg="#1E1F22",
-                fg="#64748B",
+                bg="#151518",
+                fg="#71717A",
                 pady=40,
             )
             lbl.pack(fill="both", expand=True)
             return
 
         for p in peers:
-            row = tk.Frame(self.peers_scroll_frame, bg="#131314", padx=14, pady=12, highlightthickness=1, highlightbackground="#2B2D31")
+            row = tk.Frame(self.peers_scroll_frame, bg="#111113", padx=14, pady=12, highlightthickness=1, highlightbackground="#26262B")
             row.pack(fill="x", padx=10, pady=6)
 
             icon = "📱" if "android" in p["platform"].lower() else "💻"
-            lbl_icon = tk.Label(row, text=icon, font=("Segoe UI", 18), bg="#131314", fg="#56C5FE")
+            lbl_icon = tk.Label(row, text=icon, font=("Segoe UI", 18), bg="#111113", fg="#FF7A00")
             lbl_icon.pack(side="left", padx=(0, 12))
 
-            info_col = tk.Frame(row, bg="#131314")
+            info_col = tk.Frame(row, bg="#111113")
             info_col.pack(side="left", fill="y")
 
-            lbl_name = tk.Label(info_col, text=p["device_name"], font=("Segoe UI", 11, "bold"), bg="#131314", fg="#FFFFFF")
+            lbl_name = tk.Label(info_col, text=p["device_name"], font=("Segoe UI", 11, "bold"), bg="#111113", fg="#FFFFFF")
             lbl_name.pack(anchor="w")
 
-            lbl_sub = tk.Label(info_col, text=f"{p['ip']}:{p['port']} • {p['platform'].upper()}", font=("Segoe UI", 9), bg="#131314", fg="#94A3B8")
+            lbl_sub = tk.Label(info_col, text=f"{p['ip']}:{p['port']} • {p['platform'].upper()}", font=("Segoe UI", 9), bg="#111113", fg="#A1A1AA")
             lbl_sub.pack(anchor="w")
 
             btn_send = ttk.Button(row, text="Send File 📤", style="Accent.TButton", command=lambda target=p: self._on_send_file(target))
@@ -568,7 +569,7 @@ class DropSyncAppUI:
             return
 
         filename = os.path.basename(filepath)
-        self.lbl_transfer_name.config(text=f"Sending: {filename} to {peer['device_name']}...", fg="#56C5FE")
+        self.lbl_transfer_name.config(text=f"Sending: {filename} to {peer['device_name']}...", fg="#FFA033")
         self.progress_bar["value"] = 0
 
         def _bg_send():

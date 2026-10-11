@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropSync - Long-Distance E2EE File Transfer</title>
+  <meta name="description" content="Secure, Zero-Knowledge End-to-End Encrypted File Transfer across any distance. Available strictly when transfer begins.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-void: #090A0D;
+      --bg-surface: #12141A;
+      --bg-surface-elevated: #181B24;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(78, 130, 238, 0.25);
+      --text-primary: #F0F4FC;
+      --text-secondary: #9AA0B4;
+      --text-muted: #62677B;
+      --blue-electric: #4E82EE;
+      --cyan-neon: #60A5FA;
+      --cyan-bright: #38BDF8;
+      --emerald-green: #34D399;
+      --amber-warning: #FBBF24;
+      --coral-error: #F87171;
+      --lavender: #A78BFA;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-void);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient background glows */
+    .glow-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.2;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .glow-1 {
+      top: -100px;
+      left: 15%;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, var(--blue-electric), transparent 70%);
+    }
+    .glow-2 {
+      bottom: -120px;
+      right: 15%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, var(--cyan-bright), transparent 70%);
+    }
+
+    /* Main Container Card */
+    .container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      max-width: 520px;
+      background: rgba(18, 20, 26, 0.88);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--border-subtle);
+      border-radius: 28px;
+      padding: 32px 28px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04);
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Header & Branding */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--blue-electric), var(--cyan-bright));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 18px rgba(78, 130, 238, 0.4);
+    }
+
+    .logo-icon svg {
+      width: 22px;
+      height: 22px;
+      fill: none;
+      stroke: white;
+      stroke-width: 2.2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .brand-text h1 {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+    }
+
+    .brand-text span {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .e2ee-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+      color: var(--emerald-green);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 100px;
+      letter-spacing: 0.02em;
+    }
+
+    .e2ee-dot {
+      width: 6px;
+      height: 6px;
+      background-color: var(--emerald-green);
+      border-radius: 50%;
+      animation: pulseGreen 2s infinite;
+    }
+
+    @keyframes pulseGreen {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+
+    /* Views */
+    .view {
+      display: none;
+      flex-direction: column;
+    }
+
+    .view.active {
+      display: flex;
+    }
+
+    /* Input View */
+    .input-box {
+      margin-top: 12px;
+      margin-bottom: 20px;
+    }
+
+    .label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      display: block;
+      font-weight: 500;
+    }
+
+    .code-input-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .code-input {
+      flex: 1;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      padding: 14px 16px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      outline: none;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .code-input:focus {
+      border-color: var(--blue-electric);
+      box-shadow: 0 0 0 3px rgba(78, 130, 238, 0.2);
+    }
+
+    .btn-connect {
+      background: linear-gradient(135deg, var(--blue-electric), var(--cyan-bright));
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 0 20px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    .btn-connect:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-connect:active {
+      transform: translateY(0);
+    }
+
+    /* Strict Locked View: Available Only When Transfer Begins */
+    .locked-card {
+      text-align: center;
+      padding: 28px 16px;
+      border: 1px dashed rgba(255, 255, 255, 0.12);
+      border-radius: 20px;
+      background: rgba(24, 27, 36, 0.4);
+      margin-bottom: 18px;
+    }
+
+    .shield-icon {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(78, 130, 238, 0.18), rgba(24, 27, 36, 0.8));
+      border: 1px solid rgba(78, 130, 238, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 28px rgba(78, 130, 238, 0.25);
+      animation: pulseShield 3s ease-in-out infinite;
+    }
+
+    @keyframes pulseShield {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 24px rgba(78, 130, 238, 0.25); }
+      50% { transform: scale(1.05); box-shadow: 0 0 38px rgba(96, 165, 250, 0.45); }
+    }
+
+    .shield-icon svg {
+      width: 34px;
+      height: 34px;
+      fill: none;
+      stroke: var(--cyan-neon);
+      stroke-width: 2;
+    }
+
+    .locked-card h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    .locked-card p {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--text-secondary);
+      max-width: 380px;
+      margin: 0 auto 18px;
+    }
+
+    .room-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-surface-elevated);
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--cyan-bright);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    .pulse-ring {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan-bright);
+      box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+      animation: ripple 1.6s infinite;
+    }
+
+    @keyframes ripple {
+      0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+      70% { box-shadow: 0 0 0 9px rgba(56, 189, 248, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+    }
+
+    /* Active Transfer Screen */
+    .transfer-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .file-meta-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .file-type-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(78, 130, 238, 0.15);
+      border: 1px solid rgba(78, 130, 238, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .file-type-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke: var(--cyan-neon);
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .file-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .file-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+
+    .file-size {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Progress bar */
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 100px;
+      overflow: hidden;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--blue-electric), var(--cyan-bright));
+      border-radius: 100px;
+      transition: width 0.2s ease;
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.6);
+    }
+
+    .transfer-stats {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .stats-speed {
+      color: var(--emerald-green);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 14px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 18px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--amber-warning);
+    }
+
+    .status-dot.active {
+      background: var(--emerald-green);
+    }
+
+    .status-dot.paused {
+      background: var(--amber-warning);
+    }
+
+    .status-dot.error {
+      background: var(--coral-error);
+    }
+
+    /* Action Buttons */
+    .btn-action {
+      width: 100%;
+      background: linear-gradient(135deg, var(--blue-electric), var(--cyan-bright));
+      color: white;
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(78, 130, 238, 0.3);
+    }
+
+    .btn-action:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-action:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 16px;
+      line-height: 1.4;
+    }
+
+    .security-callout {
+      background: rgba(167, 139, 250, 0.08);
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      border-radius: 12px;
+      padding: 10px 14px;
+      font-size: 11px;
+      color: var(--lavender);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="glow-orb glow-1"></div>
+  <div class="glow-orb glow-2"></div>
+
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="brand">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>DropSync</h1>
+          <span>Global E2EE Relay</span>
+        </div>
+      </div>
+      <div class="e2ee-badge">
+        <div class="e2ee-dot"></div>
+        256-Bit AES-GCM
+      </div>
+    </div>
+
+    <!-- Security Callout -->
+    <div class="security-callout">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+      </svg>
+      <span>Zero-Knowledge: Files are encrypted on sender device. Only your room code can decrypt.</span>
+    </div>
+
+    <!-- VIEW 1: Connect / Enter Code View (if no ?room= is provided) -->
+    <div id="view-connect" class="view">
+      <div class="input-box">
+        <label class="label" for="room-code-input">Enter 6-Digit Transfer Code</label>
+        <div class="code-input-group">
+          <input type="text" id="room-code-input" class="code-input" placeholder="742-198" maxlength="7" autocomplete="off" autocorrect="off" spellcheck="false">
+          <button id="btn-join" class="btn-connect">Join</button>
+        </div>
+      </div>
+      <div class="footer-note">
+        Ask the sender for their DropSync room code or direct web link.
+      </div>
+    </div>
+
+    <!-- VIEW 2: STRICT LOCKED VIEW (Active only when file transfer begins) -->
+    <div id="view-locked" class="view">
+      <div class="locked-card">
+        <div class="shield-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <rect x="9" y="11" width="6" height="5" rx="1"></rect>
+            <path d="M10 11V9a2 2 0 0 1 4 0v2"></path>
+          </svg>
+        </div>
+        <h2>Transfer Portal Locked</h2>
+        <p>This secure page is strictly available <strong>only when the file transfer begins</strong>. It will automatically unlock the moment the sender starts streaming.</p>
+        <div class="room-badge">
+          <div class="pulse-ring"></div>
+          Room: <span id="locked-room-code">---</span>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div id="presence-dot" class="status-dot"></div>
+        <span id="presence-text">Monitoring room session... Stay on this page.</span>
+      </div>
+
+      <div class="footer-note">
+        Strict Mutual Presence Guard: Both peers must remain on this page during transfer.
+      </div>
+    </div>
+
+    <!-- VIEW 3: UNLOCKED TRANSFER VIEW (Appears dynamically when transfer starts) -->
+    <div id="view-transfer" class="view">
+      <div class="transfer-card">
+        <div class="file-meta-header">
+          <div class="file-type-icon">
+            <svg viewBox="0 0 24 24">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+              <polyline points="13 2 13 9 20 9"></polyline>
+            </svg>
+          </div>
+          <div class="file-details">
+            <div id="transfer-filename" class="file-name">Receiving encrypted file...</div>
+            <div id="transfer-filesize" class="file-size">Calculating size...</div>
+          </div>
+        </div>
+
+        <div class="progress-track">
+          <div id="transfer-progress-bar" class="progress-fill"></div>
+        </div>
+
+        <div class="transfer-stats">
+          <span id="transfer-percent">0%</span>
+          <span id="transfer-speed" class="stats-speed">0.0 MB/s</span>
+          <span id="transfer-eta">Calculating ETA...</span>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div id="transfer-status-dot" class="status-dot active"></div>
+        <span id="transfer-status-text">Streaming encrypted ciphertext chunks...</span>
+      </div>
+
+      <button id="btn-download" class="btn-action" disabled>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Decrypting & Assembling...
+      </button>
+
+      <div class="footer-note">
+        Files are decrypted in browser memory. No plaintext touches the serverless relay.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // State management
+    const state = {
+      roomCode: '',
+      peerId: 'web_' + Math.floor(100000 + Math.random() * 900000),
+      derivedKey: null,
+      transferState: 'waiting',
+      fileName: 'incoming_file',
+      fileSize: 0,
+      receivedBytes: 0,
+      receivedChunks: [],
+      chunkIndexExpected: 0,
+      isTransferring: false,
+      isCompleted: false,
+      heartbeatTimer: null,
+      pollingTimer: null,
+      startTime: 0,
+    };
+
+    // UI elements
+    const viewConnect = document.getElementById('view-connect');
+    const viewLocked = document.getElementById('view-locked');
+    const viewTransfer = document.getElementById('view-transfer');
+    const inputCode = document.getElementById('room-code-input');
+    const btnJoin = document.getElementById('btn-join');
+    const lockedRoomCode = document.getElementById('locked-room-code');
+    const presenceDot = document.getElementById('presence-dot');
+    const presenceText = document.getElementById('presence-text');
+    const transferFilename = document.getElementById('transfer-filename');
+    const transferFilesize = document.getElementById('transfer-filesize');
+    const transferProgressBar = document.getElementById('transfer-progress-bar');
+    const transferPercent = document.getElementById('transfer-percent');
+    const transferSpeed = document.getElementById('transfer-speed');
+    const transferEta = document.getElementById('transfer-eta');
+    const transferStatusDot = document.getElementById('transfer-status-dot');
+    const transferStatusText = document.getElementById('transfer-status-text');
+    const btnDownload = document.getElementById('btn-download');
+
+    // Format helper
+    function formatBytes(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+    }
+
+    // Key Derivation: HKDF-SHA256 from Room Code
+    async function deriveKeyFromRoomCode(code) {
+      const clean = code.replace(/-/g, '').trim();
+      const enc = new TextEncoder();
+      const baseKey = await window.crypto.subtle.importKey(
+        'raw',
+        enc.encode(clean),
+        'HKDF',
+        false,
+        ['deriveKey']
+      );
+
+      const salt = enc.encode('DropSync_E2EE_Vercel_Relay_Salt_2026');
+      const info = enc.encode('DropSync_E2EE_SessionKey');
+
+      return await window.crypto.subtle.deriveKey(
+        {
+          name: 'HKDF',
+          hash: 'SHA-256',
+          salt: salt,
+          info: info,
+        },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt', 'encrypt']
+      );
+    }
+
+    // Decrypt AES-GCM 256-bit ciphertext
+    async function decryptChunk(encryptedBase64, key) {
+      const binaryString = atob(encryptedBase64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+
+      // Wire format: 12-byte nonce + 16-byte MAC tag + ciphertext
+      if (bytes.length < 28) {
+        throw new Error('Encrypted payload too short');
+      }
+
+      const nonce = bytes.slice(0, 12);
+      const tag = bytes.slice(12, 28);
+      const ciphertext = bytes.slice(28);
+
+      // WebCrypto AES-GCM expects ciphertext + tag concatenated
+      const combined = new Uint8Array(ciphertext.length + tag.length);
+      combined.set(ciphertext, 0);
+      combined.set(tag, ciphertext.length);
+
+      return await window.crypto.subtle.decrypt(
+        {
+          name: 'AES-GCM',
+          iv: nonce,
+          tagLength: 128,
+        },
+        key,
+        combined
+      );
+    }
+
+    // Switch active view
+    function showView(view) {
+      [viewConnect, viewLocked, viewTransfer].forEach(v => v.classList.remove('active'));
+      view.classList.add('active');
+    }
+
+    // Heartbeat reporting
+    async function sendHeartbeat(status = 'active') {
+      if (!state.roomCode) return;
+      try {
+        const res = await fetch('/api/heartbeat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomCode: state.roomCode,
+            peerId: state.peerId,
+            role: 'receiver',
+            status: status,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          handlePresenceUpdate(data.presence, data.transferState);
+        }
+      } catch (err) {
+        console.warn('Heartbeat error:', err);
+      }
+    }
+
+    // Handle presence & transfer state changes
+    function handlePresenceUpdate(presence, transferState) {
+      if (!presence) return;
+
+      if (presence.bothPresent) {
+        presenceDot.className = 'status-dot active';
+        presenceText.innerText = 'Connected to sender. Mutual presence confirmed.';
+      } else if (!presence.senderActive) {
+        presenceDot.className = 'status-dot paused';
+        presenceText.innerText = 'Waiting for sender to open transfer page...';
+      }
+
+      // STRICT AVAILABILITY GUARD:
+      // If transferState is 'transferring' or 'completed', UNLOCK the page!
+      const currentStatus = transferState || presence.transferState;
+      if ((currentStatus === 'transferring' || currentStatus === 'completed') && !state.isTransferring) {
+        unlockTransferView();
+      }
+    }
+
+    // Unlock page when file transfer begins
+    function unlockTransferView() {
+      state.isTransferring = true;
+      showView(viewTransfer);
+      transferStatusText.innerText = 'Receiving stream... Mutual presence active.';
+    }
+
+    // Check room status periodically
+    async function pollRoom() {
+      if (!state.roomCode) return;
+      try {
+        const res = await fetch(`/api/room?code=${encodeURIComponent(state.roomCode)}`);
+        if (res.ok) {
+          const data = await res.json();
+          handlePresenceUpdate(data.presence, data.transferState);
+          if (data.metadata) {
+            state.fileName = data.metadata.fileName || state.fileName;
+            state.fileSize = data.metadata.fileSize || state.fileSize;
+            transferFilename.innerText = state.fileName;
+            transferFilesize.innerText = formatBytes(state.fileSize);
+          }
+        }
+      } catch (err) {}
+    }
+
+    // Stream & pull encrypted chunks
+    async function pollChunks() {
+      if (!state.roomCode || !state.derivedKey || state.isCompleted) return;
+
+      try {
+        const res = await fetch(`/api/chunk?roomCode=${encodeURIComponent(state.roomCode)}`);
+        if (res.status === 403) {
+          transferStatusDot.className = 'status-dot paused';
+          transferStatusText.innerText = 'Transfer paused: Mutual presence required. Both users must stay on page.';
+          return;
+        }
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.transferState === 'transferring' && !state.isTransferring) {
+            unlockTransferView();
+          }
+
+          if (data.chunks && data.chunks.length > 0) {
+            if (!state.isTransferring) {
+              unlockTransferView();
+            }
+            if (state.startTime === 0) state.startTime = Date.now();
+
+            for (const chunk of data.chunks) {
+              if (chunk.isHeader) {
+                // Header chunk contains metadata JSON
+                const decryptedHeader = await decryptChunk(chunk.dataBase64, state.derivedKey);
+                const meta = JSON.parse(new TextDecoder().decode(decryptedHeader));
+                state.fileName = meta.fileName;
+                state.fileSize = meta.fileSize;
+                transferFilename.innerText = state.fileName;
+                transferFilesize.innerText = formatBytes(state.fileSize);
+              } else {
+                // Binary payload chunk
+                const decrypted = await decryptChunk(chunk.dataBase64, state.derivedKey);
+                state.receivedChunks.push(decrypted);
+                state.receivedBytes += decrypted.byteLength;
+
+                // Update UI progress
+                const percent = Math.min(100, Math.round((state.receivedBytes / state.fileSize) * 100));
+                transferProgressBar.style.width = percent + '%';
+                transferPercent.innerText = percent + '%';
+
+                const elapsedSec = (Date.now() - state.startTime) / 1000;
+                const speedMBps = elapsedSec > 0 ? (state.receivedBytes / (1024 * 1024)) / elapsedSec : 15.0;
+                transferSpeed.innerText = speedMBps.toFixed(1) + ' MB/s';
+
+                const remainingBytes = state.fileSize - state.receivedBytes;
+                const etaSec = speedMBps > 0 ? Math.ceil(remainingBytes / (speedMBps * 1024 * 1024)) : 0;
+                transferEta.innerText = etaSec > 0 ? `${etaSec}s remaining` : 'Completing...';
+
+                if (state.receivedBytes >= state.fileSize) {
+                  onTransferComplete();
+                  break;
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Chunk pull error:', err);
+      }
+    }
+
+    // Complete download and save file
+    function onTransferComplete() {
+      state.isCompleted = true;
+      transferStatusDot.className = 'status-dot active';
+      transferStatusText.innerText = 'Transfer complete! Decrypted with 256-Bit AES-GCM.';
+      transferProgressBar.style.width = '100%';
+      transferPercent.innerText = '100%';
+      transferEta.innerText = 'Complete';
+
+      // Assemble chunks into Blob
+      const blob = new Blob(state.receivedChunks, { type: 'application/octet-stream' });
+      const downloadUrl = URL.createObjectURL(blob);
+
+      btnDownload.disabled = false;
+      btnDownload.innerHTML = `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Save Decrypted File (${formatBytes(state.fileSize)})
+      `;
+
+      btnDownload.onclick = () => {
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = state.fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      };
+
+      // Auto-trigger download
+      btnDownload.click();
+    }
+
+    // Join room function
+    async function joinRoom(code) {
+      const clean = code.trim().toUpperCase();
+      if (!clean) return;
+
+      state.roomCode = clean;
+      lockedRoomCode.innerText = clean;
+
+      // 1. Derive encryption key immediately
+      state.derivedKey = await deriveKeyFromRoomCode(clean);
+
+      // 2. Announce presence to relay
+      try {
+        await fetch('/api/room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomCode: clean,
+            peerId: state.peerId,
+            role: 'receiver',
+          }),
+        });
+      } catch (e) {}
+
+      // 3. Show LOCKED VIEW by default
+      // Rule: page is only available when file transfer begins
+      showView(viewLocked);
+
+      // 4. Start heartbeat and polling loops
+      sendHeartbeat('active');
+      pollRoom();
+
+      if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
+      if (state.pollingTimer) clearInterval(state.pollingTimer);
+
+      state.heartbeatTimer = setInterval(() => sendHeartbeat('active'), 1500);
+      state.pollingTimer = setInterval(() => {
+        pollRoom();
+        pollChunks();
+      }, 500);
+    }
+
+    // Listen for tab focus / minimize
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        sendHeartbeat('left');
+      } else {
+        sendHeartbeat('active');
+      }
+    });
+
+    // Auto-detect room parameter from URL (?room=XXX-XXX or #XXX-XXX)
+    function init() {
+      const params = new URLSearchParams(window.location.search);
+      const roomParam = params.get('room') || window.location.hash.replace('#', '');
+      if (roomParam) {
+        inputCode.value = roomParam;
+        joinRoom(roomParam);
+      } else {
+        showView(viewConnect);
+      }
+
+      btnJoin.addEventListener('click', () => {
+        if (inputCode.value) joinRoom(inputCode.value);
+      });
+
+      inputCode.addEventListener('keyup', (e) => {
+        if (e.key === 'Enter' && inputCode.value) {
+          joinRoom(inputCode.value);
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+</body>
+</html>

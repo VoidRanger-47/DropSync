@@ -1,0 +1,54 @@
+name: dropsync
+description: "High-speed local P2P file and clipboard sharing across Windows Desktop and Android."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  crypto: ^3.0.3
+  path_provider: ^2.1.2
+  file_picker: ^8.0.0
+  cupertino_icons: ^1.0.6
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.2.3
+  intl: ^0.19.0
+  path: ^1.9.0
+  shared_preferences: ^2.2.2
+  open_filex: ^4.5.0
+  cryptography: ^2.7.0
+  multicast_dns: ^0.3.2+6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/icon.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#172062"
+  adaptive_icon_foreground: "assets/icon/icon_foreground.png"
+  web:
+    generate: false
+  windows:
+    generate: true
+    image_path: "assets/icon/icon.png"
+    icon_size: 256
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icon/icon.png
+    - assets/icon/dropsync_icon.png
+    - assets/icon/dropsync_mark.png
+    - assets/icon/dropsync_mark_transparent.png
+    - assets/icon/dropsync_full_logo.png
+    - assets/icon/dropsync_banner.png

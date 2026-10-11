@@ -1,0 +1,7 @@
+# DropSync Python Dependencies
+# Note: On Windows, dropsync_host.py uses native ctypes Win32 APIs with zero external dependencies!
+# These packages are optional enhancements or cross-platform fallbacks:
+
+pyperclip>=1.8.2
+tqdm>=4.66.0
+zeroconf>=0.131.0

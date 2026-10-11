@@ -673,7 +673,10 @@ class InternetTransferService {
         }
       }
 
-      await Future.delayed(const Duration(milliseconds: 30));
+      // Only delay if queue is empty to avoid artificial lag behind sender
+      if (room.chunkQueue.isEmpty) {
+        await Future.delayed(const Duration(milliseconds: 30));
+      }
     }
 
     return null;

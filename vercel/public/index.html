@@ -856,6 +856,11 @@
                 }
               }
             }
+
+            // If there are more chunks remaining in relay queue, pull immediately without waiting 500ms
+            if (data.remaining > 0 && !state.isCompleted) {
+              setTimeout(pollChunks, 30);
+            }
           }
         }
       } catch (err) {

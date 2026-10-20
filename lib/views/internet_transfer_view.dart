@@ -275,10 +275,10 @@ class _InternetTransferViewState extends State<InternetTransferView>
                         ActionChip(
                           backgroundColor: const Color(0xFFF38020).withOpacity(0.18),
                           avatar: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFFFA033)),
-                          label: const Text('Cloudflare Edge (Fastest)', style: TextStyle(fontSize: 11, color: Color(0xFFFFA033), fontWeight: FontWeight.bold)),
+                          label: const Text('Cloudflare Edge (Default)', style: TextStyle(fontSize: 11, color: Color(0xFFFFA033), fontWeight: FontWeight.bold)),
                           onPressed: () {
                             setDialogState(() {
-                              ctrl.text = 'https://dropsync-relay.workers.dev';
+                              ctrl.text = 'https://dropsync.voidranger.workers.dev';
                               testResult = null;
                             });
                           },
@@ -326,7 +326,7 @@ class _InternetTransferViewState extends State<InternetTransferView>
                       decoration: InputDecoration(
                         labelText: 'Relay Endpoint URL',
                         labelStyle: const TextStyle(color: GeminiTheme.cyan),
-                        hintText: 'https://dropsync-web.vercel.app',
+                        hintText: 'https://dropsync.voidranger.workers.dev',
                         hintStyle: const TextStyle(color: GeminiTheme.textMuted),
                         filled: true,
                         fillColor: GeminiTheme.surfaceVariant,

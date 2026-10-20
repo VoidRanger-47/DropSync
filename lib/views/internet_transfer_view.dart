@@ -273,6 +273,17 @@ class _InternetTransferViewState extends State<InternetTransferView>
                       runSpacing: 6,
                       children: [
                         ActionChip(
+                          backgroundColor: const Color(0xFFF38020).withOpacity(0.18),
+                          avatar: const Icon(Icons.bolt_rounded, size: 14, color: Color(0xFFFFA033)),
+                          label: const Text('Cloudflare Edge (Fastest)', style: TextStyle(fontSize: 11, color: Color(0xFFFFA033), fontWeight: FontWeight.bold)),
+                          onPressed: () {
+                            setDialogState(() {
+                              ctrl.text = 'https://dropsync-relay.workers.dev';
+                              testResult = null;
+                            });
+                          },
+                        ),
+                        ActionChip(
                           backgroundColor: GeminiTheme.surfaceVariant,
                           avatar: const Icon(Icons.cloud_done_rounded, size: 14, color: GeminiTheme.cyan),
                           label: const Text('DropSync Cloud (Vercel)', style: TextStyle(fontSize: 11, color: GeminiTheme.textPrimary)),
@@ -502,6 +513,9 @@ class _InternetTransferViewState extends State<InternetTransferView>
 
   Widget _buildTopHeader() {
     final isCompact = context.isCompact;
+    final isCf = widget.internetService.isCloudflareRelay;
+    final isWs = widget.internetService.isWebSocketConnected;
+    final host = widget.internetService.relayHost;
 
     return Container(
       padding: EdgeInsets.all(context.responsiveCardPadding),
@@ -510,67 +524,122 @@ class _InternetTransferViewState extends State<InternetTransferView>
         borderRadius: BorderRadius.circular(isCompact ? 18 : 24),
         border: GeminiTheme.thinBorder,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: const BoxDecoration(
-              gradient: GeminiTheme.geminiGlowGradient,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.public_rounded, color: Colors.white, size: 24),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: const BoxDecoration(
+                  gradient: GeminiTheme.geminiGlowGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.public_rounded, color: Colors.white, size: 24),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Flexible(
-                      child: Text(
-                        'Internet Transfer (E2EE)',
-                        style: TextStyle(
-                          color: GeminiTheme.textPrimary,
-                          fontSize: isCompact ? 16 : 18,
-                          fontWeight: FontWeight.bold,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            'Internet Transfer (E2EE)',
+                            style: TextStyle(
+                              color: GeminiTheme.textPrimary,
+                              fontSize: isCompact ? 16 : 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: GeminiTheme.emeraldGreen.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: GeminiTheme.emeraldGreen.withOpacity(0.4)),
+                          ),
+                          child: const Text(
+                            '256-BIT AES-GCM',
+                            style: TextStyle(
+                              color: GeminiTheme.emeraldGreen,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: GeminiTheme.emeraldGreen.withOpacity(0.18),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: GeminiTheme.emeraldGreen.withOpacity(0.4)),
-                      ),
-                      child: const Text(
-                        '256-BIT AES-GCM',
-                        style: TextStyle(
-                          color: GeminiTheme.emeraldGreen,
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Global WAN sync • Zero-knowledge encryption',
+                      style: TextStyle(color: GeminiTheme.textSecondary, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-                const SizedBox(height: 3),
-                const Text(
-                  'Global WAN sync • Zero-knowledge encryption • Vercel-ready',
-                  style: TextStyle(color: GeminiTheme.textSecondary, fontSize: 12),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.tune_rounded, color: GeminiTheme.cyan, size: 20),
+                onPressed: _showVercelConfigDialog,
+                tooltip: 'Configure Relay Server',
+              ),
+            ],
           ),
-          IconButton(
-            icon: const Icon(Icons.dns_rounded, color: GeminiTheme.cyan, size: 20),
-            onPressed: _showVercelConfigDialog,
-            tooltip: 'Configure Vercel Relay Endpoint',
+          const SizedBox(height: 10),
+          // Live Relay Connection & Ping Chip
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: _showVercelConfigDialog,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: isCf ? const Color(0xFFF38020).withOpacity(0.12) : Colors.white.withOpacity(0.04),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isCf ? const Color(0xFFF38020).withOpacity(0.4) : Colors.white.withOpacity(0.08),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: isWs
+                          ? GeminiTheme.emeraldGreen
+                          : (isCf ? const Color(0xFFF38020) : GeminiTheme.cyan),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      isCf
+                          ? (isWs ? '⚡ Cloudflare Edge • WebSocket Active' : '⚡ Cloudflare Edge • Connecting...')
+                          : '🌐 Vercel Relay ($host)',
+                      style: TextStyle(
+                        color: isCf ? const Color(0xFFFFA033) : GeminiTheme.textSecondary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Tap to switch',
+                    style: TextStyle(color: GeminiTheme.textMuted.withOpacity(0.7), fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),

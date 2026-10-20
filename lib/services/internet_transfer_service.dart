@@ -145,11 +145,30 @@ class InternetTransferService {
     return null;
   }
 
+  bool get isWebSocketConnected => _relaySocket != null;
+  String get relayHost {
+    try {
+      final uri = Uri.parse(_customVercelUrl);
+      return uri.host.isNotEmpty ? uri.host : _customVercelUrl;
+    } catch (_) {
+      return _customVercelUrl;
+    }
+  }
+  bool get isCloudflareRelay =>
+      _customVercelUrl.contains('.workers.dev') ||
+      _customVercelUrl.contains('.pages.dev') ||
+      _customVercelUrl.toLowerCase().contains('cloudflare');
+
   void setVercelUrl(String url) {
     _customVercelUrl = url.trim();
     SharedPreferences.getInstance().then((sp) {
       sp.setString('dropsync_custom_relay_url', _customVercelUrl);
     }).catchError((_) => null);
+
+    // Reconnect socket if room active
+    if (_currentRoomCode != null) {
+      _connectWebSocket(_currentRoomCode!, _isSender);
+    }
   }
 
   /// Tests connection latency and health against active or custom relay URL.
@@ -164,10 +183,19 @@ class InternetTransferService {
       if (resp.statusCode >= 200 && resp.statusCode < 300) {
         final bodyStr = await resp.transform(utf8.decoder).join();
         final data = jsonDecode(bodyStr) as Map<String, dynamic>;
+        final serviceName = data['service'] as String? ?? (data['storageEngine'] ?? 'cloud');
+        final edgeRegion = data['edgeRegion'] as String?;
+        final isCf = serviceName.toLowerCase().contains('cloudflare') ||
+            target.contains('workers.dev') ||
+            target.contains('pages.dev');
+
         return {
           'ok': true,
           'latencyMs': sw.elapsedMilliseconds,
-          'storageEngine': data['storageEngine'] ?? 'cloud',
+          'service': serviceName,
+          'edgeRegion': edgeRegion,
+          'isCloudflare': isCf,
+          'storageEngine': data['storageEngine'] ?? (isCf ? 'Edge V8 Isolate' : 'Serverless'),
           'status': data['status'] ?? 'healthy',
           'version': data['version'] ?? '2.0.0',
         };
@@ -180,10 +208,13 @@ class InternetTransferService {
         final req = await _httpClient.getUrl(uri);
         final resp = await req.close().timeout(const Duration(seconds: 3));
         if (resp.statusCode == 200 || resp.statusCode == 400 || resp.statusCode == 404) {
+          final isCf = target.contains('workers.dev') || target.contains('pages.dev');
           return {
             'ok': true,
             'latencyMs': sw.elapsedMilliseconds,
-            'storageEngine': 'active',
+            'service': isCf ? 'Cloudflare Edge' : 'Relay Server',
+            'isCloudflare': isCf,
+            'storageEngine': isCf ? 'Edge V8 Isolate' : 'Serverless',
             'status': 'online',
           };
         }

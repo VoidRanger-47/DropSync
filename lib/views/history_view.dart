@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/transfer_record.dart';
-import '../services/history_repository.dart';
+import '../services/storage/history_repository.dart';
 import '../theme/gemini_theme.dart';
 import '../theme/responsive.dart';
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/clipboard_service.dart';
-import '../services/history_repository.dart';
+import '../services/storage/history_repository.dart';
 import '../services/network_service.dart';
-import '../services/storage_service.dart';
+import '../services/storage/storage_service.dart';
 import '../theme/gemini_theme.dart';
 import 'history_view.dart';
 import 'internet_transfer_view.dart';
@@ -11,9 +11,9 @@ import 'receiver_view.dart';
 import '../services/hotspot_service.dart';
 import '../services/internet_transfer_service.dart';
 import 'sender_view.dart';
-import 'settings_dialog.dart';
+import '../widgets/settings_dialog.dart';
 
-import 'pin_confirmation_dialog.dart';
+import '../widgets/pin_confirmation_dialog.dart';
 import '../widgets/dropsync_logo.dart';
 import '../theme/responsive.dart';
 
@@ -166,6 +166,7 @@ class _LandingViewState extends State<LandingView> {
                   size: isCompact ? 32 : 38,
                   showText: false,
                   showGlow: true,
+                  assetPath: 'assets/icon/icon.png',
                 ),
                 SizedBox(width: isCompact ? 8 : 12),
                 Flexible(

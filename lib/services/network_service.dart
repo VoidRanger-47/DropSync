@@ -6,13 +6,16 @@ import '../models/peer.dart';
 import '../models/transfer_record.dart';
 import '../models/transfer_session.dart';
 import 'discovery_service.dart';
-import 'history_repository.dart';
+import 'storage/history_repository.dart';
 import 'quickshare/quickshare_discovery.dart';
 import 'quickshare/quickshare_receiver.dart';
 import 'quickshare/ukey2_handshake.dart';
 import 'quickshare/protobuf/nearby_sharing_protobuf.dart';
-import 'socket_engine.dart';
-import 'storage_service.dart';
+import 'dropsync/dropsync_engine.dart';
+import 'storage/storage_service.dart';
+import 'transport/transfer_transport.dart';
+import 'transport/dropsync_lan_transport.dart';
+import 'transport/quickshare_transport.dart';
 
 enum ServerConnectionState {
   stopped,
@@ -81,6 +84,8 @@ class NetworkService {
   ServerConnectionState get connectionState => _connectionState;
   String get statusMessage => _statusMessage;
 
+  final UnifiedTransportManager transportManager = UnifiedTransportManager();
+
   NetworkService({
     required this.storageService,
     required this.historyRepository,
@@ -89,7 +94,9 @@ class NetworkService {
     String? sessionToken,
   })  : deviceName = deviceName ?? _detectDefaultDeviceName(),
         deviceId = deviceId ?? _generateRandomId(),
-        sessionToken = sessionToken ?? _generateToken();
+        sessionToken = sessionToken ?? _generateToken() {
+    transportManager.registerTransport(DropSyncLanTransport());
+  }
 
   /// Starts the network service: resolves IP, starts DropSync & Quick Share servers and mDNS discovery.
   Future<void> start() async {
@@ -110,6 +117,7 @@ class NetworkService {
       },
     );
     await _quickShareReceiver!.start();
+    transportManager.registerTransport(QuickShareTransport(quickShareReceiver: _quickShareReceiver));
 
     final platformStr = Platform.isAndroid
         ? 'android'
@@ -303,7 +311,7 @@ class NetworkService {
         'Sending ${p.basename(file.path)} to ${peer.name}',
       );
 
-      final session = await SocketEngine.sendFile(
+      final session = await DropSyncEngine.sendFileWithIsolate(
         socket: socket,
         file: file,
         onProgress: (progress) {

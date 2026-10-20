@@ -6,8 +6,8 @@
   <title>DropSync - Long-Distance E2EE File Transfer</title>
   <meta name="description" content="Secure, Zero-Knowledge End-to-End Encrypted File Transfer across any distance. Available strictly when transfer begins.">
   <link rel="icon" type="image/x-icon" href="/favicon.ico">
-  <link rel="icon" type="image/png" href="/dropsync_mark.png">
-  <link rel="apple-touch-icon" href="/dropsync_icon.png">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <link rel="apple-touch-icon" href="/icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -505,7 +505,7 @@
     <div class="header">
       <div class="brand">
         <div class="logo-icon">
-          <img src="/dropsync_mark.png" alt="DropSync" />
+          <img src="/icon.png" alt="DropSync" />
         </div>
         <div class="brand-text">
           <h1>DropSync</h1>
@@ -798,12 +798,173 @@
       } catch (err) {}
     }
 
-    // Stream & pull encrypted chunks
+    // -------------------------------------------------------------
+    // WebRTC Direct P2P DataChannel Streaming Engine
+    // Bypasses Vercel 4.5 MB request limit and streams direct peer-to-peer!
+    // -------------------------------------------------------------
+    let peerConnection = null;
+    let dataChannel = null;
+
+    async function initWebRtc() {
+      if (peerConnection) return;
+      try {
+        const config = {
+          iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' }
+          ]
+        };
+        peerConnection = new RTCPeerConnection(config);
+
+        peerConnection.onicecandidate = (event) => {
+          if (event.candidate && state.roomCode) {
+            sendSignal('candidate', event.candidate);
+          }
+        };
+
+        peerConnection.ondatachannel = (event) => {
+          setupDataChannel(event.channel);
+        };
+      } catch (err) {
+        console.warn('WebRTC initialization failed:', err);
+      }
+    }
+
+    function setupDataChannel(channel) {
+      dataChannel = channel;
+      dataChannel.binaryType = 'arraybuffer';
+      dataChannel.onopen = () => {
+        console.log('[WebRTC] Direct P2P DataChannel OPEN!');
+        transferStatusText.innerText = 'Connected via direct WebRTC DataChannel (P2P)';
+      };
+      dataChannel.onmessage = async (event) => {
+        await processRawChunk(event.data);
+      };
+    }
+
+    async function sendSignal(signalType, payload) {
+      if (!state.roomCode) return;
+      try {
+        await fetch('/api/signal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomCode: state.roomCode,
+            role: 'receiver',
+            signalType,
+            payload,
+          }),
+        });
+      } catch (err) {}
+    }
+
+    async function pollSignals() {
+      if (!state.roomCode || state.isCompleted) return;
+      try {
+        const res = await fetch(`/api/signal?roomCode=${encodeURIComponent(state.roomCode)}&role=receiver`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.signals && data.signals.length > 0) {
+            if (!peerConnection) await initWebRtc();
+
+            for (const sig of data.signals) {
+              if (sig.signalType === 'offer') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(sig.payload));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                await sendSignal('answer', answer);
+              } else if (sig.signalType === 'candidate') {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(sig.payload));
+              }
+            }
+          }
+        }
+      } catch (err) {}
+    }
+
+    async function processRawChunk(arrayBufferOrBase64, chunkIndex, isHeader) {
+      if (!state.derivedKey || state.isCompleted) return;
+      if (!state.isTransferring) unlockTransferView();
+      if (state.startTime === 0) state.startTime = Date.now();
+
+      try {
+        let b64 = '';
+        if (typeof arrayBufferOrBase64 === 'string') {
+          b64 = arrayBufferOrBase64;
+        } else {
+          // Convert ArrayBuffer to Base64
+          const bytes = new Uint8Array(arrayBufferOrBase64);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          b64 = btoa(binary);
+        }
+
+        // Handle metadata header
+        if (isHeader || (!state.fileName && (chunkIndex === 0 || chunkIndex === undefined))) {
+          try {
+            const decryptedHeader = await decryptChunk(b64, state.derivedKey);
+            const meta = JSON.parse(new TextDecoder().decode(decryptedHeader));
+            if (meta.fileName && meta.fileSize !== undefined) {
+              state.fileName = meta.fileName;
+              state.fileSize = meta.fileSize;
+              transferFilename.innerText = state.fileName;
+              transferFilesize.innerText = formatBytes(state.fileSize);
+              return;
+            }
+          } catch (_) {}
+        }
+
+        const decrypted = await decryptChunk(b64, state.derivedKey);
+
+        // In-order assembly buffer for concurrent chunk streams
+        if (!state.pendingChunks) {
+          state.pendingChunks = new Map();
+          state.nextExpectedIndex = 1;
+        }
+
+        const idx = (chunkIndex !== undefined && chunkIndex !== null && chunkIndex > 0)
+          ? Number(chunkIndex)
+          : (state.nextExpectedIndex || 1);
+
+        state.pendingChunks.set(idx, decrypted);
+
+        while (state.pendingChunks.has(state.nextExpectedIndex)) {
+          const orderedChunk = state.pendingChunks.get(state.nextExpectedIndex);
+          state.pendingChunks.delete(state.nextExpectedIndex);
+          state.receivedChunks.push(orderedChunk);
+          state.receivedBytes += orderedChunk.byteLength;
+          state.nextExpectedIndex++;
+        }
+
+        // Update progress
+        const percent = Math.min(100, Math.round((state.receivedBytes / (state.fileSize || 1)) * 100));
+        transferProgressBar.style.width = percent + '%';
+        transferPercent.innerText = percent + '%';
+
+        const elapsedSec = (Date.now() - state.startTime) / 1000;
+        const speedMBps = elapsedSec > 0 ? (state.receivedBytes / (1024 * 1024)) / elapsedSec : 15.0;
+        transferSpeed.innerText = speedMBps.toFixed(1) + ' MB/s';
+
+        const remainingBytes = (state.fileSize || 0) - state.receivedBytes;
+        const etaSec = speedMBps > 0 ? Math.ceil(remainingBytes / (speedMBps * 1024 * 1024)) : 0;
+        transferEta.innerText = etaSec > 0 ? `${etaSec}s remaining` : 'Completing...';
+
+        if (state.fileSize && state.receivedBytes >= state.fileSize) {
+          onTransferComplete();
+        }
+      } catch (err) {
+        console.warn('Chunk processing error:', err);
+      }
+    }
+
+    // Stream & pull encrypted chunks (fallback for non-WebRTC connections)
     async function pollChunks() {
       if (!state.roomCode || !state.derivedKey || state.isCompleted) return;
 
       try {
-        const res = await fetch(`/api/room?action=chunk&roomCode=${encodeURIComponent(state.roomCode)}`);
+        const res = await fetch(`/api/room?action=chunk&roomCode=${encodeURIComponent(state.roomCode)}&max=30`);
         if (res.ok) {
           const data = await res.json();
           if (data.transferState === 'transferring' && !state.isTransferring) {
@@ -811,55 +972,12 @@
           }
 
           if (data.chunks && data.chunks.length > 0) {
-            if (!state.isTransferring) {
-              unlockTransferView();
-            }
-            if (state.startTime === 0) state.startTime = Date.now();
-
             for (const chunk of data.chunks) {
-              if (chunk.isHeader) {
-                // Header chunk contains metadata JSON
-                const decryptedHeader = await decryptChunk(chunk.dataBase64, state.derivedKey);
-                const meta = JSON.parse(new TextDecoder().decode(decryptedHeader));
-                state.fileName = meta.fileName;
-                state.fileSize = meta.fileSize;
-                transferFilename.innerText = state.fileName;
-                transferFilesize.innerText = formatBytes(state.fileSize);
-              } else {
-                // Binary payload chunk
-                const decrypted = await decryptChunk(chunk.dataBase64, state.derivedKey);
-                state.receivedChunks.push(decrypted);
-                state.receivedBytes += decrypted.byteLength;
-
-                // Update UI progress
-                const percent = Math.min(100, Math.round((state.receivedBytes / state.fileSize) * 100));
-                transferProgressBar.style.width = percent + '%';
-                transferPercent.innerText = percent + '%';
-
-                const elapsedSec = (Date.now() - state.startTime) / 1000;
-                const speedMBps = elapsedSec > 0 ? (state.receivedBytes / (1024 * 1024)) / elapsedSec : 15.0;
-                transferSpeed.innerText = speedMBps.toFixed(1) + ' MB/s';
-
-                const remainingBytes = state.fileSize - state.receivedBytes;
-                const etaSec = speedMBps > 0 ? Math.ceil(remainingBytes / (speedMBps * 1024 * 1024)) : 0;
-                transferEta.innerText = etaSec > 0 ? `${etaSec}s remaining` : 'Completing...';
-
-                if (state.receivedBytes >= state.fileSize) {
-                  onTransferComplete();
-                  break;
-                }
-              }
-            }
-
-            // If there are more chunks remaining in relay queue, pull immediately without waiting 500ms
-            if (data.remaining > 0 && !state.isCompleted) {
-              setTimeout(pollChunks, 30);
+              await processRawChunk(chunk.dataBase64, chunk.chunkIndex, chunk.isHeader);
             }
           }
         }
-      } catch (err) {
-        console.warn('Chunk pull error:', err);
-      }
+      } catch (err) {}
     }
 
     // Complete download and save file
@@ -882,13 +1000,13 @@
           <polyline points="7 10 12 15 17 10"></polyline>
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
-        Save Decrypted File (${formatBytes(state.fileSize)})
+        Save Decrypted File (${formatBytes(state.fileSize || state.receivedBytes)})
       `;
 
       btnDownload.onclick = () => {
         const a = document.createElement('a');
         a.href = downloadUrl;
-        a.download = state.fileName;
+        a.download = state.fileName || 'downloaded_file';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -922,13 +1040,16 @@
         });
       } catch (e) {}
 
-      // 3. Show LOCKED VIEW by default
-      // Rule: page is only available when file transfer begins
+      // 3. Initialize WebRTC P2P receiver
+      await initWebRtc();
+
+      // 4. Show LOCKED VIEW by default
       showView(viewLocked);
 
-      // 4. Start heartbeat and polling loops
+      // 5. Start heartbeat and polling loops
       sendHeartbeat('active');
       pollRoom();
+      pollSignals();
 
       if (state.heartbeatTimer) clearInterval(state.heartbeatTimer);
       if (state.pollingTimer) clearInterval(state.pollingTimer);
@@ -936,6 +1057,7 @@
       state.heartbeatTimer = setInterval(() => sendHeartbeat('active'), 1500);
       state.pollingTimer = setInterval(() => {
         pollRoom();
+        pollSignals();
         pollChunks();
       }, 500);
     }

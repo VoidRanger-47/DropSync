@@ -4,7 +4,8 @@
   "description": "Zero-Knowledge End-to-End Encrypted Relay & Mutual Presence Engine for DropSync",
   "main": "api/room.js",
   "scripts": {
-    "start": "vercel dev",
+    "start": "node server.js",
+    "dev": "node server.js",
     "deploy": "vercel --prod"
   },
   "keywords": [

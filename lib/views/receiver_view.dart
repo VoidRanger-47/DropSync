@@ -7,9 +7,9 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/transfer_session.dart';
 import '../services/hotspot_service.dart';
 import '../services/network_service.dart';
-import '../services/storage_service.dart';
+import '../services/storage/storage_service.dart';
 import '../theme/gemini_theme.dart';
-import 'transfer_progress_widget.dart';
+import '../widgets/transfer_progress_widget.dart';
 import '../theme/responsive.dart';
 
 /// Receiver Mode View: Displays QR code, LAN IP, background socket status,
@@ -584,7 +584,9 @@ class _ReceiverViewState extends State<ReceiverView>
                             const SizedBox(width: 6),
                             Flexible(
                               child: Text(
-                                'Password: ${widget.hotspotService.password}',
+                                widget.hotspotService.password.isNotEmpty
+                                    ? 'Password: ${widget.hotspotService.password}'
+                                    : 'Password: (None / Open)',
                                 style: const TextStyle(
                                   color: GeminiTheme.textSecondary,
                                   fontSize: 12,

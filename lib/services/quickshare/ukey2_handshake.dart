@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'protobuf/nearby_sharing_protobuf.dart';
@@ -7,7 +8,6 @@ import 'protobuf/nearby_sharing_protobuf.dart';
 /// matching the exact cryptographic pairing used by Google / Samsung Quick Share.
 class Ukey2Handshake {
   final X25519 _x25519 = X25519();
-  final AesGcm _aesGcm = AesGcm.with256bits();
 
   SimpleKeyPair? _keyPair;
   Uint8List? _myPublicKeyBytes;
@@ -67,74 +67,93 @@ class Ukey2Handshake {
     _sharedSecret = Uint8List.fromList(secretBytes);
 
     // Derive 4-digit PIN and session keys via HKDF-SHA256
+    // Derive 4-digit PIN and session keys via HKDF-SHA256 in dedicated Isolate
     await _deriveKeys(isClient: isClient);
   }
 
   Future<void> _deriveKeys({required bool isClient}) async {
-    final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
+    final secretCopy = Uint8List.fromList(_sharedSecret!);
 
-    // 1. Derive 4-digit security PIN (matches code shown on Android Quick Share dialog)
-    final pinMaterial = await hkdf.deriveKey(
-      secretKey: SecretKey(_sharedSecret!),
-      nonce: utf8.encode('UKEY2_PIN_SALT'),
-      info: utf8.encode('QuickShareAuthPin'),
-    );
-    final pinBytes = await pinMaterial.extractBytes();
-    final pinInt = (ByteData.sublistView(Uint8List.fromList(pinBytes)).getUint32(0)) % 10000;
-    _pinCode = pinInt.toString().padLeft(4, '0');
+    // Offload cryptographic derivation to background Isolate to prevent UI frame drops
+    final result = await Isolate.run(() async {
+      final hkdf = Hkdf(hmac: Hmac.sha256(), outputLength: 32);
 
-    // 2. Derive directional AES-256 session keys
-    final keyA = await hkdf.deriveKey(
-      secretKey: SecretKey(_sharedSecret!),
-      nonce: utf8.encode('UKEY2_CLIENT_WRITE_KEY'),
-      info: utf8.encode('AES_256_GCM'),
-    );
-    final keyB = await hkdf.deriveKey(
-      secretKey: SecretKey(_sharedSecret!),
-      nonce: utf8.encode('UKEY2_SERVER_WRITE_KEY'),
-      info: utf8.encode('AES_256_GCM'),
-    );
+      // 1. Derive 4-digit security PIN (matches code shown on Android Quick Share dialog)
+      final pinMaterial = await hkdf.deriveKey(
+        secretKey: SecretKey(secretCopy),
+        nonce: utf8.encode('UKEY2_PIN_SALT'),
+        info: utf8.encode('QuickShareAuthPin'),
+      );
+      final pinBytes = await pinMaterial.extractBytes();
+      final pinInt = (ByteData.sublistView(Uint8List.fromList(pinBytes)).getUint32(0)) % 10000;
+      final pinCode = pinInt.toString().padLeft(4, '0');
 
+      // 2. Derive directional AES-256 session keys
+      final keyA = await hkdf.deriveKey(
+        secretKey: SecretKey(secretCopy),
+        nonce: utf8.encode('UKEY2_CLIENT_WRITE_KEY'),
+        info: utf8.encode('AES_256_GCM'),
+      );
+      final keyB = await hkdf.deriveKey(
+        secretKey: SecretKey(secretCopy),
+        nonce: utf8.encode('UKEY2_SERVER_WRITE_KEY'),
+        info: utf8.encode('AES_256_GCM'),
+      );
+
+      final bytesA = await keyA.extractBytes();
+      final bytesB = await keyB.extractBytes();
+
+      return (pinCode, bytesA, bytesB);
+    });
+
+    _pinCode = result.$1;
     if (isClient) {
-      _encryptKey = keyA;
-      _decryptKey = keyB;
+      _encryptKey = SecretKey(result.$2);
+      _decryptKey = SecretKey(result.$3);
     } else {
-      _encryptKey = keyB;
-      _decryptKey = keyA;
+      _encryptKey = SecretKey(result.$3);
+      _decryptKey = SecretKey(result.$2);
     }
   }
 
-  /// Encrypts an outgoing frame using AES-256-GCM with a sequential IV.
+  /// Encrypts an outgoing frame using AES-256-GCM with a sequential IV in background isolate.
   Future<Uint8List> encryptFrame(Uint8List plaintext) async {
     if (_encryptKey == null) throw StateError('UKEY2 handshake not completed');
 
     final nonce = _generateNonce(_outboundSeq++);
-    final secretBox = await _aesGcm.encrypt(
-      plaintext,
-      secretKey: _encryptKey!,
-      nonce: nonce,
-    );
+    final keyBytes = await _encryptKey!.extractBytes();
 
-    return Uint8List.fromList(secretBox.concatenation());
+    return Isolate.run(() async {
+      final aesGcm = AesGcm.with256bits();
+      final secretBox = await aesGcm.encrypt(
+        plaintext,
+        secretKey: SecretKey(keyBytes),
+        nonce: nonce,
+      );
+      return Uint8List.fromList(secretBox.concatenation());
+    });
   }
 
-  /// Decrypts an incoming frame using AES-256-GCM.
+  /// Decrypts an incoming frame using AES-256-GCM in background isolate.
   Future<Uint8List> decryptFrame(Uint8List ciphertextWithMac) async {
     if (_decryptKey == null) throw StateError('UKEY2 handshake not completed');
 
     _inboundSeq++;
-    final secretBox = SecretBox.fromConcatenation(
-      ciphertextWithMac,
-      nonceLength: 12,
-      macLength: 16,
-    );
+    final keyBytes = await _decryptKey!.extractBytes();
 
-    final decrypted = await _aesGcm.decrypt(
-      secretBox,
-      secretKey: _decryptKey!,
-    );
-
-    return Uint8List.fromList(decrypted);
+    return Isolate.run(() async {
+      final aesGcm = AesGcm.with256bits();
+      final secretBox = SecretBox.fromConcatenation(
+        ciphertextWithMac,
+        nonceLength: 12,
+        macLength: 16,
+      );
+      final decrypted = await aesGcm.decrypt(
+        secretBox,
+        secretKey: SecretKey(keyBytes),
+      );
+      return Uint8List.fromList(decrypted);
+    });
   }
 
   List<int> _generateNonce(int seq) {

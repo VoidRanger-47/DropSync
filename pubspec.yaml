@@ -46,9 +46,4 @@ flutter_launcher_icons:
 flutter:
   uses-material-design: true
   assets:
-    - assets/icon/icon.png
-    - assets/icon/dropsync_icon.png
-    - assets/icon/dropsync_mark.png
-    - assets/icon/dropsync_mark_transparent.png
-    - assets/icon/dropsync_full_logo.png
-    - assets/icon/dropsync_banner.png
+    - assets/icon/

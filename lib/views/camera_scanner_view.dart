@@ -50,7 +50,7 @@ class _CameraScannerViewState extends State<CameraScannerView>
     if (_isDetected) return;
 
     for (final barcode in capture.barcodes) {
-      final raw = barcode.rawValue;
+      final raw = barcode.rawValue ?? barcode.displayValue;
       if (raw != null && raw.isNotEmpty) {
         final peer = Peer.fromQrString(raw);
         if (peer != null) {

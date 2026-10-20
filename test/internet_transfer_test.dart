@@ -3,9 +3,10 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:dropsync/services/history_repository.dart';
+import 'package:dropsync/models/transfer_session.dart';
+import 'package:dropsync/services/storage/history_repository.dart';
 import 'package:dropsync/services/internet_transfer_service.dart';
-import 'package:dropsync/services/storage_service.dart';
+import 'package:dropsync/services/storage/storage_service.dart';
 import 'package:dropsync/views/internet_transfer_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -146,6 +147,46 @@ void main() {
       expect(service.areBothPresent, isFalse); // still waiting for receiver
 
       service.dispose();
+    });
+
+    test('Full End-to-End file send and receive over in-memory relay', () async {
+      final senderService = InternetTransferService(
+        storageService: storageService,
+        historyRepository: historyRepository,
+      );
+      final receiverService = InternetTransferService(
+        storageService: storageService,
+        historyRepository: historyRepository,
+      );
+
+      const code = '888-333';
+      await senderService.createSenderRoom(code);
+      await receiverService.joinReceiverRoom(code);
+
+      // Create a test file of 200 KB (triggers multi-chunk buffering)
+      final testFile = File('${tempDir.path}/test_upload.bin');
+      final fileData = List<int>.generate(200 * 1024, (i) => i % 256);
+      await testFile.writeAsBytes(fileData);
+
+      // Start receiver in background
+      final receiveFuture = receiverService.startReceiverListening();
+
+      // Send file
+      final sentSession = await senderService.sendFile(file: testFile);
+      expect(sentSession.status, equals(TransferStatus.completed));
+      expect(sentSession.bytesTransferred, equals(200 * 1024));
+
+      // Await received file
+      final receivedFile = await receiveFuture;
+      expect(receivedFile, isNotNull);
+      expect(receivedFile!.existsSync(), isTrue);
+
+      final receivedBytes = await receivedFile.readAsBytes();
+      expect(receivedBytes.length, equals(200 * 1024));
+      expect(receivedBytes, equals(fileData));
+
+      senderService.dispose();
+      receiverService.dispose();
     });
   });
 

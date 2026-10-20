@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -27,13 +26,19 @@ class HotspotService {
   }
 
   void _initDefaults() {
-    final rand = Random();
-    final suffix = rand.nextInt(9000) + 1000;
-    _ssid = 'DropSync_$suffix';
-    _password = 'dropsync$suffix';
+    String defaultName = 'DropSync';
+    if (Platform.isWindows) {
+      final comp = Platform.environment['COMPUTERNAME'];
+      if (comp != null && comp.isNotEmpty) defaultName = comp;
+    } else if (Platform.isAndroid) {
+      defaultName = 'Android Device';
+    }
+    _ssid = defaultName;
+    _password = '';
   }
 
-  /// Loads saved hotspot settings from persistent storage.
+  /// Loads saved hotspot settings from persistent storage, or automatically
+  /// queries the device for its real Wi-Fi Hotspot SSID and password.
   Future<void> loadSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -41,13 +46,107 @@ class HotspotService {
       final savedSsid = prefs.getString(_prefHotspotSsid);
       final savedPass = prefs.getString(_prefHotspotPassword);
 
-      if (savedSsid != null && savedSsid.isNotEmpty) {
+      // Check if user has explicitly saved custom credentials before
+      final isLegacyRandom = savedSsid != null &&
+          RegExp(r'^DropSync_\d{4}$').hasMatch(savedSsid);
+
+      if (savedSsid != null && savedSsid.isNotEmpty && !isLegacyRandom) {
         _ssid = savedSsid;
+        _password = savedPass ?? '';
+        return;
       }
-      if (savedPass != null && savedPass.isNotEmpty) {
-        _password = savedPass;
+
+      // If no valid user-configured credentials saved, detect device credentials
+      await detectAndApplyDeviceCredentials();
+    } catch (_) {}
+  }
+
+  /// Queries the host operating system (Android, Windows) for the actual
+  /// device hotspot SSID and password so DropSync matches the device by default.
+  Future<void> detectAndApplyDeviceCredentials() async {
+    try {
+      if (Platform.isAndroid) {
+        final result = await _androidChannel.invokeMapMethod<String, dynamic>('getDeviceHotspotInfo');
+        if (result != null) {
+          final detectedSsid = result['ssid']?.toString().trim();
+          final detectedPass = result['password']?.toString().trim();
+          if (detectedSsid != null && detectedSsid.isNotEmpty) {
+            _ssid = detectedSsid;
+          }
+          if (detectedPass != null && detectedPass.isNotEmpty) {
+            _password = detectedPass;
+          }
+        }
+      } else if (Platform.isWindows) {
+        final creds = await _detectWindowsWifiCredentials();
+        if (creds['ssid'] != null && creds['ssid']!.isNotEmpty) {
+          _ssid = creds['ssid']!;
+        }
+        if (creds['password'] != null && creds['password']!.isNotEmpty) {
+          _password = creds['password']!;
+        }
       }
     } catch (_) {}
+  }
+
+  /// Extracts the active Wi-Fi / Hotspot SSID and password from Windows WLAN profiles.
+  static Future<Map<String, String>> _detectWindowsWifiCredentials() async {
+    String detectedSsid = '';
+    String detectedPass = '';
+    try {
+      final ifaceResult = await Process.run('netsh', ['wlan', 'show', 'interfaces']);
+      if (ifaceResult.exitCode == 0) {
+        final out = ifaceResult.stdout as String;
+        final lines = out.split(RegExp(r'\r?\n'));
+        for (final line in lines) {
+          final trimmed = line.trim();
+          if (trimmed.startsWith('SSID') && trimmed.contains(':')) {
+            final parts = trimmed.split(':');
+            if (parts.length >= 2) {
+              final candidate = parts.sublist(1).join(':').trim();
+              if (candidate.isNotEmpty && !candidate.startsWith('<')) {
+                detectedSsid = candidate;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (detectedSsid.isNotEmpty) {
+        final profileResult = await Process.run('netsh', [
+          'wlan',
+          'show',
+          'profile',
+          'name=$detectedSsid',
+          'key=clear',
+        ]);
+        if (profileResult.exitCode == 0) {
+          final out = profileResult.stdout as String;
+          final lines = out.split(RegExp(r'\r?\n'));
+          for (final line in lines) {
+            final trimmed = line.trim();
+            if (trimmed.startsWith('Key Content') && trimmed.contains(':')) {
+              final parts = trimmed.split(':');
+              if (parts.length >= 2) {
+                detectedPass = parts.sublist(1).join(':').trim();
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
+    if (detectedSsid.isEmpty) {
+      final compName = Platform.environment['COMPUTERNAME'];
+      detectedSsid = (compName != null && compName.isNotEmpty) ? compName : 'Windows PC';
+    }
+
+    return {
+      'ssid': detectedSsid,
+      'password': detectedPass,
+    };
   }
 
   /// Saves updated hotspot credentials to persistent storage.
@@ -108,6 +207,17 @@ class HotspotService {
     return fallbackIp;
   }
 
+  /// Returns the SSID of the currently connected Wi-Fi network on Android.
+  Future<String> getCurrentWifiSsid() async {
+    try {
+      if (Platform.isAndroid) {
+        final ssid = await _androidChannel.invokeMethod<String>('getCurrentWifiSsid');
+        return ssid?.trim() ?? '';
+      }
+    } catch (_) {}
+    return '';
+  }
+
   /// Automatically connects to the designated Wi-Fi Hotspot on Android or Windows.
   Future<bool> connectToHotspot({
     required String ssid,
@@ -128,31 +238,35 @@ class HotspotService {
     }
   }
 
-  /// Android Native connection via MethodChannel + WifiNetworkSpecifier
+  /// Android Native connection via MethodChannel + WifiNetworkSpecifier & Suggestions
   Future<bool> _connectAndroid({
     required String ssid,
     required String password,
     void Function(String status)? onStatusUpdate,
   }) async {
+    final cleanSsid = ssid.trim();
+    final cleanPass = password.trim();
+
     try {
-      onStatusUpdate?.call('Requesting Android Wi-Fi connection to $ssid...');
+      onStatusUpdate?.call('Requesting Android Wi-Fi connection to $cleanSsid...');
       final result = await _androidChannel.invokeMethod<bool>('connectToHotspot', {
-        'ssid': ssid,
-        'password': password,
+        'ssid': cleanSsid,
+        'password': cleanPass,
       });
 
       if (result == true) {
-        onStatusUpdate?.call('Connected to $ssid successfully!');
+        onStatusUpdate?.call('Connected to $cleanSsid successfully!');
         return true;
       }
     } on PlatformException catch (e) {
-      onStatusUpdate?.call('Android connection hint: ${e.message ?? 'Opening settings'}');
+      onStatusUpdate?.call('Android connection hint: ${e.message ?? 'Connecting...'}');
     } catch (_) {}
 
-    // Fallback: copy password and launch Wi-Fi settings
-    await Clipboard.setData(ClipboardData(text: password));
-    onStatusUpdate?.call('Password copied! Please select $ssid in Wi-Fi settings.');
-    await openWifiSettings();
+    // Copy password to clipboard for user convenience if needed
+    if (cleanPass.isNotEmpty) {
+      await Clipboard.setData(ClipboardData(text: cleanPass));
+    }
+    onStatusUpdate?.call('If prompted by Android, tap "Connect" to join $cleanSsid');
     return false;
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,7 +13,7 @@ import '../services/network_service.dart';
 import '../theme/gemini_theme.dart';
 import 'camera_scanner_view.dart';
 import 'receiver_view.dart';
-import 'transfer_progress_widget.dart';
+import '../widgets/transfer_progress_widget.dart';
 import '../theme/responsive.dart';
 
 /// Sender Mode View: File picker, UDP Peer Radar, QR Scanner,
@@ -149,6 +150,14 @@ class _SenderViewState extends State<SenderView>
     bool isConnecting = true;
     bool connectionSuccess = false;
     bool connectionAttemptStarted = false;
+    Timer? pollTimer;
+
+    void finishAndProceed() {
+      pollTimer?.cancel();
+      if (mounted) {
+        _connectAndSelectPeer(peer);
+      }
+    }
 
     showDialog(
       context: context,
@@ -157,6 +166,38 @@ class _SenderViewState extends State<SenderView>
         builder: (ctx, setDialogState) {
           if (!connectionAttemptStarted) {
             connectionAttemptStarted = true;
+
+            // 1. Periodically check if connected to hotspot SSID (handles suggestions and OS dialog taps)
+            if (Platform.isAndroid) {
+              int pollCount = 0;
+              pollTimer = Timer.periodic(const Duration(milliseconds: 1200), (timer) async {
+                pollCount++;
+                if (pollCount > 25) {
+                  timer.cancel();
+                  return;
+                }
+                final currentSsid = await widget.hotspotService.getCurrentWifiSsid();
+                if (currentSsid.isNotEmpty &&
+                    peer.hotspotSsid != null &&
+                    currentSsid.toLowerCase() == peer.hotspotSsid!.toLowerCase()) {
+                  timer.cancel();
+                  if (ctx.mounted) {
+                    setDialogState(() {
+                      isConnecting = false;
+                      connectionSuccess = true;
+                      status = 'Connected to ${peer.hotspotSsid}!';
+                    });
+                    Future.delayed(const Duration(milliseconds: 500), () {
+                      if (!ctx.mounted) return;
+                      Navigator.of(ctx).pop();
+                      finishAndProceed();
+                    });
+                  }
+                }
+              });
+            }
+
+            // 2. Invoke platform connection
             widget.hotspotService.connectToHotspot(
               ssid: peer.hotspotSsid!,
               password: peer.hotspotPassword ?? '',
@@ -174,8 +215,16 @@ class _SenderViewState extends State<SenderView>
                   connectionSuccess = success;
                   status = success
                       ? 'Connected to ${peer.hotspotSsid}!'
-                      : 'Connecting... If prompted by OS, tap "Connect" or check Wi-Fi settings.';
+                      : 'Connecting... If prompted by Android, tap "Connect", or check Wi-Fi settings.';
                 });
+
+                if (success) {
+                  Future.delayed(const Duration(milliseconds: 500), () {
+                    if (!ctx.mounted) return;
+                    Navigator.of(ctx).pop();
+                    finishAndProceed();
+                  });
+                }
               }
             });
           }
@@ -305,7 +354,10 @@ class _SenderViewState extends State<SenderView>
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
+                onPressed: () {
+                  pollTimer?.cancel();
+                  Navigator.of(ctx).pop();
+                },
                 child: const Text('Cancel', style: TextStyle(color: GeminiTheme.textMuted)),
               ),
               OutlinedButton.icon(
@@ -319,7 +371,7 @@ class _SenderViewState extends State<SenderView>
               ElevatedButton(
                 onPressed: () {
                   Navigator.of(ctx).pop();
-                  _connectAndSelectPeer(peer);
+                  finishAndProceed();
                 },
                 child: const Text('Proceed to Transfer'),
               ),
@@ -380,7 +432,9 @@ class _SenderViewState extends State<SenderView>
                 style: const TextStyle(color: GeminiTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
               ),
               Text(
-                'Password: ${widget.hotspotService.password}',
+                widget.hotspotService.password.isNotEmpty
+                    ? 'Password: ${widget.hotspotService.password}'
+                    : 'Password: (None / Open)',
                 style: const TextStyle(color: GeminiTheme.textSecondary, fontSize: 12),
               ),
             ],

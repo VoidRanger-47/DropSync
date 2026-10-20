@@ -7,11 +7,11 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/peer.dart';
 import '../models/transfer_session.dart';
 import '../services/internet_transfer_service.dart';
-import '../services/storage_service.dart';
+import '../services/storage/storage_service.dart';
 import '../theme/gemini_theme.dart';
 import '../theme/responsive.dart';
 import 'camera_scanner_view.dart';
-import 'transfer_progress_widget.dart';
+import '../widgets/transfer_progress_widget.dart';
 
 enum InternetMode {
   send,
@@ -235,66 +235,216 @@ class _InternetTransferViewState extends State<InternetTransferView>
 
   void _showVercelConfigDialog() {
     final ctrl = TextEditingController(text: widget.internetService.vercelUrl);
+    bool isTesting = false;
+    Map<String, dynamic>? testResult;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: GeminiTheme.surfaceContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
-          children: [
-            Icon(Icons.cloud_sync_rounded, color: GeminiTheme.cyan),
-            SizedBox(width: 10),
-            Text('Vercel Relay Settings', style: TextStyle(color: GeminiTheme.textPrimary, fontSize: 18)),
-          ],
-        ),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Configure your custom Vercel serverless relay URL for global WAN transfers:',
-                style: TextStyle(color: GeminiTheme.textSecondary, fontSize: 13),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: ctrl,
-                style: const TextStyle(color: GeminiTheme.textPrimary),
-                decoration: InputDecoration(
-                  labelText: 'Vercel Deployment URL',
-                  labelStyle: const TextStyle(color: GeminiTheme.cyan),
-                  hintText: 'https://dropsync-web.vercel.app',
-                  hintStyle: const TextStyle(color: GeminiTheme.textMuted),
-                  filled: true,
-                  fillColor: GeminiTheme.surfaceVariant,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: GeminiTheme.surfaceContainer,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: const Row(
+              children: [
+                Icon(Icons.public_rounded, color: GeminiTheme.cyan),
+                SizedBox(width: 10),
+                Text('Relay Hosting & Diagnostics', style: TextStyle(color: GeminiTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Host your relay anywhere (Vercel, Render, Railway, Fly.io, or Docker) for maximum speed and zero file-size limits:',
+                      style: TextStyle(color: GeminiTheme.textSecondary, fontSize: 13),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Quick Presets
+                    const Text('QUICK PRESETS', style: TextStyle(color: GeminiTheme.textMuted, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8)),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        ActionChip(
+                          backgroundColor: GeminiTheme.surfaceVariant,
+                          avatar: const Icon(Icons.cloud_done_rounded, size: 14, color: GeminiTheme.cyan),
+                          label: const Text('DropSync Cloud (Vercel)', style: TextStyle(fontSize: 11, color: GeminiTheme.textPrimary)),
+                          onPressed: () {
+                            setDialogState(() {
+                              ctrl.text = 'https://dropsync-web.vercel.app';
+                              testResult = null;
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          backgroundColor: GeminiTheme.surfaceVariant,
+                          avatar: const Icon(Icons.dns_rounded, size: 14, color: GeminiTheme.lavender),
+                          label: const Text('Render / Cloud', style: TextStyle(fontSize: 11, color: GeminiTheme.textPrimary)),
+                          onPressed: () {
+                            setDialogState(() {
+                              ctrl.text = 'https://dropsync-relay.onrender.com';
+                              testResult = null;
+                            });
+                          },
+                        ),
+                        ActionChip(
+                          backgroundColor: GeminiTheme.surfaceVariant,
+                          avatar: const Icon(Icons.computer_rounded, size: 14, color: GeminiTheme.emeraldGreen),
+                          label: const Text('Local (Port 3000)', style: TextStyle(fontSize: 11, color: GeminiTheme.textPrimary)),
+                          onPressed: () {
+                            setDialogState(() {
+                              ctrl.text = Platform.isAndroid ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
+                              testResult = null;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextField(
+                      controller: ctrl,
+                      style: const TextStyle(color: GeminiTheme.textPrimary, fontFamily: 'Consolas', fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: 'Relay Endpoint URL',
+                        labelStyle: const TextStyle(color: GeminiTheme.cyan),
+                        hintText: 'https://dropsync-web.vercel.app',
+                        hintStyle: const TextStyle(color: GeminiTheme.textMuted),
+                        filled: true,
+                        fillColor: GeminiTheme.surfaceVariant,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.clear, size: 18, color: GeminiTheme.textMuted),
+                          onPressed: () => setDialogState(() => ctrl.clear()),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Test Connection Button & Latency Benchmark
+                    Row(
+                      children: [
+                        OutlinedButton.icon(
+                          icon: isTesting
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: GeminiTheme.cyan))
+                              : const Icon(Icons.speed_rounded, size: 16, color: GeminiTheme.cyan),
+                          label: Text(isTesting ? 'Testing...' : 'Test Connection & Ping', style: const TextStyle(fontSize: 12, color: GeminiTheme.cyan)),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: GeminiTheme.cyan),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: isTesting
+                              ? null
+                              : () async {
+                                  setDialogState(() {
+                                    isTesting = true;
+                                    testResult = null;
+                                  });
+                                  final res = await widget.internetService.checkRelayHealth(ctrl.text);
+                                  setDialogState(() {
+                                    isTesting = false;
+                                    testResult = res;
+                                  });
+                                },
+                        ),
+                      ],
+                    ),
+
+                    if (testResult != null) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: (testResult!['ok'] == true ? GeminiTheme.emeraldGreen : GeminiTheme.coralError).withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: (testResult!['ok'] == true ? GeminiTheme.emeraldGreen : GeminiTheme.coralError).withOpacity(0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              testResult!['ok'] == true ? Icons.check_circle_rounded : Icons.error_outline_rounded,
+                              size: 18,
+                              color: testResult!['ok'] == true ? GeminiTheme.emeraldGreen : GeminiTheme.coralError,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                testResult!['ok'] == true
+                                    ? 'Online (${testResult!['latencyMs']} ms latency) • Storage: ${testResult!['storageEngine']}'
+                                    : 'Unreachable: ${testResult!['error'] ?? "Connection refused"}',
+                                style: TextStyle(
+                                  color: testResult!['ok'] == true ? GeminiTheme.emeraldGreen : GeminiTheme.coralError,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.terminal_rounded, size: 14, color: GeminiTheme.lavender),
+                              SizedBox(width: 6),
+                              Text('Self-Host Commands (vercel/ directory):', style: TextStyle(color: GeminiTheme.textPrimary, fontSize: 11, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            '• Node.js: npm start (or node server.js)\n• Docker: docker build -t dropsync-relay vercel/ && docker run -p 3000:3000 dropsync-relay\n• Cloud: npx vercel --prod',
+                            style: TextStyle(color: GeminiTheme.textMuted, fontSize: 10, fontFamily: 'Consolas'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              const Text(
-                'Tip: Zero plaintext is stored on Vercel. All data transmitted is 256-bit AES-GCM encrypted on your device.',
-                style: TextStyle(color: GeminiTheme.textMuted, fontSize: 11),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel', style: TextStyle(color: GeminiTheme.textMuted)),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GeminiTheme.cyan,
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                onPressed: () {
+                  widget.internetService.setVercelUrl(ctrl.text);
+                  Navigator.of(ctx).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Relay endpoint saved: ${ctrl.text}')),
+                  );
+                },
+                child: const Text('Save & Connect', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: GeminiTheme.textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              widget.internetService.setVercelUrl(ctrl.text);
-              Navigator.of(ctx).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Vercel relay URL updated')),
-              );
-            },
-            child: const Text('Save'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }

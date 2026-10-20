@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:dropsync/models/transfer_session.dart';
 import 'package:dropsync/theme/responsive.dart';
 import 'package:dropsync/theme/gemini_theme.dart';
-import 'package:dropsync/views/pin_confirmation_dialog.dart';
-import 'package:dropsync/views/transfer_progress_widget.dart';
+import 'package:dropsync/widgets/pin_confirmation_dialog.dart';
+import 'package:dropsync/widgets/transfer_progress_widget.dart';
 
 void main() {
   group('Responsive Layout & Breakpoint Tests', () {

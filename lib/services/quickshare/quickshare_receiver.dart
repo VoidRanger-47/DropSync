@@ -4,8 +4,8 @@ import 'dart:typed_data';
 import 'package:path/path.dart' as p;
 import '../../models/transfer_record.dart';
 import '../../models/transfer_session.dart';
-import '../history_repository.dart';
-import '../storage_service.dart';
+import '../storage/history_repository.dart';
+import '../storage/storage_service.dart';
 import 'protobuf/nearby_sharing_protobuf.dart';
 import 'ukey2_handshake.dart';
 

@@ -1,7 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import '../services/network_service.dart';
-import '../services/storage_service.dart';
+import '../services/storage/storage_service.dart';
 import '../theme/gemini_theme.dart';
 import '../theme/responsive.dart';
 

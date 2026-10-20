@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dropsync/models/peer.dart';
+import 'package:dropsync/services/hotspot_service.dart';
 import 'package:dropsync/views/receiver_view.dart';
 
 void main() {
@@ -59,6 +61,30 @@ void main() {
       expect(peer.ip, equals('192.168.43.1'));
     });
 
+    test('Peer.fromQrString handles reversed field order, quoted SSIDs, and escaped chars', () {
+      // 1. Android Settings QR where T: is first and SSID is quoted
+      const androidQr = 'WIFI:T:WPA;S:"Galaxy Hotspot";P:"securePass123";;';
+      final peer1 = Peer.fromQrString(androidQr);
+      expect(peer1, isNotNull);
+      expect(peer1!.hotspotSsid, equals('Galaxy Hotspot'));
+      expect(peer1.hotspotPassword, equals('securePass123'));
+      expect(peer1.isHotspot, isTrue);
+
+      // 2. Escaped semicolon and colon
+      const escapedQr = r'WIFI:S:My\;Phone;P:pass\:123;;';
+      final peer2 = Peer.fromQrString(escapedQr);
+      expect(peer2, isNotNull);
+      expect(peer2!.hotspotSsid, equals('My;Phone'));
+      expect(peer2.hotspotPassword, equals('pass:123'));
+
+      // 3. Open Wi-Fi (T:nopass) without password field
+      const openQr = 'WIFI:T:nopass;S:OpenHotspot;;';
+      final peer3 = Peer.fromQrString(openQr);
+      expect(peer3, isNotNull);
+      expect(peer3!.hotspotSsid, equals('OpenHotspot'));
+      expect(peer3.hotspotPassword, equals(''));
+    });
+
     test('Peer.fromQrString parses legacy non-hotspot JSON without crashing', () {
       final legacyPayload = jsonEncode({
         'ip': '192.168.1.100',
@@ -111,6 +137,48 @@ void main() {
       final peer3 = Peer.fromQrString('789-012');
       expect(peer3, isNotNull);
       expect(peer3!.token, equals('789-012'));
+    });
+  });
+
+  group('HotspotService Device Credentials Tests', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+    });
+
+    test('HotspotService default SSID matches device/computer name and has no random number suffix', () {
+      final service = HotspotService();
+      expect(service.ssid, isNotEmpty);
+      expect(RegExp(r'^DropSync_\d{4}$').hasMatch(service.ssid), isFalse);
+    });
+
+    test('HotspotService saves and loads user-configured credentials', () async {
+      final service = HotspotService();
+      await service.saveSettings(
+        enabled: true,
+        ssid: 'MyPersonalNetwork',
+        password: 'securePassword123',
+      );
+
+      final service2 = HotspotService();
+      await service2.loadSettings();
+
+      expect(service2.isHotspotMode, isTrue);
+      expect(service2.ssid, equals('MyPersonalNetwork'));
+      expect(service2.password, equals('securePassword123'));
+    });
+
+    test('HotspotService replaces legacy random DropSync_XXXX default on loadSettings', () async {
+      SharedPreferences.setMockInitialValues({
+        'hotspot_enabled': false,
+        'hotspot_ssid': 'DropSync_8492',
+        'hotspot_password': 'dropsync8492',
+      });
+
+      final service = HotspotService();
+      await service.loadSettings();
+
+      // Legacy random DropSync_XXXX should have been discarded
+      expect(service.ssid, isNot(equals('DropSync_8492')));
     });
   });
 }

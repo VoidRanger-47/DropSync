@@ -7,10 +7,11 @@ import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/transfer_record.dart';
 import '../models/transfer_session.dart';
-import 'history_repository.dart';
-import 'storage_service.dart';
+import 'storage/history_repository.dart';
+import 'storage/storage_service.dart';
 
 enum InternetPeerPresence {
   waitingForPeer,
@@ -33,7 +34,7 @@ enum InternetTransferState {
 /// with strict mutual real-time presence guard (both peers must stay on the page)
 /// and Vercel-ready serverless relay signaling.
 class InternetTransferService {
-  static const int chunkSize = 48 * 1024; // 48 KB chunk size for smooth WAN streaming
+  static const int chunkSize = 128 * 1024; // 128 KB chunk size for maximum WAN streaming throughput
   static const Duration heartbeatInterval = Duration(milliseconds: 1500);
   static const Duration peerTimeout = Duration(milliseconds: 4000);
 
@@ -97,6 +98,17 @@ class InternetTransferService {
     required this.historyRepository,
   }) {
     _localPeerId = 'peer_${Random().nextInt(900000) + 100000}';
+    _loadSavedRelayUrl();
+  }
+
+  Future<void> _loadSavedRelayUrl() async {
+    try {
+      final sp = await SharedPreferences.getInstance();
+      final saved = sp.getString('dropsync_custom_relay_url');
+      if (saved != null && saved.trim().isNotEmpty) {
+        _customVercelUrl = saved.trim();
+      }
+    } catch (_) {}
   }
 
   final HttpClient _httpClient = HttpClient()
@@ -134,6 +146,54 @@ class InternetTransferService {
 
   void setVercelUrl(String url) {
     _customVercelUrl = url.trim();
+    SharedPreferences.getInstance().then((sp) {
+      sp.setString('dropsync_custom_relay_url', _customVercelUrl);
+    }).catchError((_) => null);
+  }
+
+  /// Tests connection latency and health against active or custom relay URL.
+  Future<Map<String, dynamic>> checkRelayHealth([String? testUrl]) async {
+    final target = (testUrl ?? _customVercelUrl).trim();
+    final sw = Stopwatch()..start();
+    try {
+      final uri = Uri.parse('$target/api/health');
+      final req = await _httpClient.getUrl(uri);
+      final resp = await req.close().timeout(const Duration(seconds: 4));
+      sw.stop();
+      if (resp.statusCode >= 200 && resp.statusCode < 300) {
+        final bodyStr = await resp.transform(utf8.decoder).join();
+        final data = jsonDecode(bodyStr) as Map<String, dynamic>;
+        return {
+          'ok': true,
+          'latencyMs': sw.elapsedMilliseconds,
+          'storageEngine': data['storageEngine'] ?? 'cloud',
+          'status': data['status'] ?? 'healthy',
+          'version': data['version'] ?? '2.0.0',
+        };
+      }
+    } catch (e) {
+      sw.stop();
+      // Fallback: test heartbeat endpoint
+      try {
+        final uri = Uri.parse('$target/api/room?action=heartbeat');
+        final req = await _httpClient.getUrl(uri);
+        final resp = await req.close().timeout(const Duration(seconds: 3));
+        if (resp.statusCode == 200 || resp.statusCode == 400 || resp.statusCode == 404) {
+          return {
+            'ok': true,
+            'latencyMs': sw.elapsedMilliseconds,
+            'storageEngine': 'active',
+            'status': 'online',
+          };
+        }
+      } catch (_) {}
+      return {
+        'ok': false,
+        'latencyMs': sw.elapsedMilliseconds,
+        'error': e.toString(),
+      };
+    }
+    return {'ok': false, 'latencyMs': sw.elapsedMilliseconds, 'error': 'Server error'};
   }
 
   /// Generates a human-friendly 6-character room code (e.g., "742-198")
@@ -429,33 +489,33 @@ class InternetTransferService {
     int chunkIndex = 1;
     final totalChunks = (fileSize / chunkSize).ceil() + 1;
     final fileStream = file.openRead();
+    final inFlightUploads = <Future>[];
+    const maxConcurrentUploads = 4;
+    final buffer = BytesBuilder(copy: false);
 
-    await for (final rawChunk in fileStream) {
-      if (_currentRoomCode == null) {
-        throw Exception('Transfer cancelled: room closed');
-      }
+    Future<void> dispatchChunk(List<int> chunkBytes, int cIdx) async {
+      // 1. Encrypt binary chunk with AES-256-GCM
+      final encryptedChunk = await _encryptBytes(chunkBytes);
 
-      // 2. Encrypt 48 KB binary chunk with AES-256-GCM
-      final encryptedChunk = await _encryptBytes(rawChunk);
-
-      // 3. Relay to room queue
+      // 2. Add to in-memory room queue (for instant local mock/offline tests)
       room.chunkQueue.add(_RelayChunk(
         isHeader: false,
         data: encryptedChunk,
-        chunkIndex: chunkIndex,
+        chunkIndex: cIdx,
       ));
 
-      // Post chunk to Vercel relay and await transmission confirmation
+      // 3. Post chunk to relay server
       await _postJson('/api/room?action=chunk', {
         'roomCode': code,
         'peerId': _localPeerId,
-        'chunkIndex': chunkIndex++,
+        'chunkIndex': cIdx,
         'totalChunks': totalChunks,
         'isHeader': false,
         'dataBase64': base64Encode(encryptedChunk),
       }).catchError((_) => null);
+    }
 
-      bytesTransferred += rawChunk.length;
+    void updateSessionProgress() {
       final progress = fileSize > 0 ? (bytesTransferred / fileSize).clamp(0.0, 1.0) : 1.0;
       final elapsedSec = stopwatch.elapsedMilliseconds / 1000.0;
       final speedMBps = elapsedSec > 0 ? (bytesTransferred / (1024 * 1024)) / elapsedSec : 15.0;
@@ -478,9 +538,50 @@ class InternetTransferService {
       _activeSession = session;
       _sessionController.add(session);
       onProgress?.call(session);
+    }
 
-      // Brief throttle for smooth async streaming
-      await Future.delayed(const Duration(milliseconds: 10));
+    await for (final rawPart in fileStream) {
+      if (_currentRoomCode == null) {
+        throw Exception('Transfer cancelled: room closed');
+      }
+
+      buffer.add(rawPart);
+
+      while (buffer.length >= chunkSize) {
+        final fullBlock = buffer.takeBytes();
+        final chunkBytes = fullBlock.sublist(0, chunkSize);
+        if (fullBlock.length > chunkSize) {
+          buffer.add(fullBlock.sublist(chunkSize));
+        }
+
+        final cIdx = chunkIndex++;
+        final fut = dispatchChunk(chunkBytes, cIdx);
+        inFlightUploads.add(fut);
+        fut.whenComplete(() => inFlightUploads.remove(fut));
+
+        bytesTransferred += chunkBytes.length;
+        updateSessionProgress();
+
+        if (inFlightUploads.length >= maxConcurrentUploads) {
+          await Future.any(inFlightUploads);
+        }
+      }
+    }
+
+    // Flush any trailing bytes
+    if (buffer.isNotEmpty) {
+      final trailingBytes = buffer.takeBytes();
+      final cIdx = chunkIndex++;
+      final fut = dispatchChunk(trailingBytes, cIdx);
+      inFlightUploads.add(fut);
+      fut.whenComplete(() => inFlightUploads.remove(fut));
+      bytesTransferred += trailingBytes.length;
+      updateSessionProgress();
+    }
+
+    // Await all in-flight chunk uploads
+    if (inFlightUploads.isNotEmpty) {
+      await Future.wait(inFlightUploads);
     }
 
     stopwatch.stop();
@@ -536,11 +637,14 @@ class InternetTransferService {
     int bytesReceived = 0;
     final stopwatch = Stopwatch();
 
+    final Map<int, List<int>> pendingDecryptedChunks = {};
+    int nextExpectedChunkIndex = 1;
+
     while (_currentRoomCode != null && _presenceState != InternetPeerPresence.disconnected) {
       // Check HTTP relay for pending chunks if in-memory queue is empty
       if (room.chunkQueue.isEmpty) {
         try {
-          final chunkData = await _getJson('/api/room?action=chunk&roomCode=$code');
+          final chunkData = await _getJson('/api/room?action=chunk&roomCode=$code&max=30');
           if (chunkData != null && chunkData['chunks'] != null) {
             final pulled = chunkData['chunks'] as List<dynamic>;
             for (final c in pulled) {
@@ -570,6 +674,8 @@ class InternetTransferService {
           incomingFileName = meta['fileName'] as String;
           incomingFileSize = meta['fileSize'] as int;
           expectedSha256 = meta['sha256'] as String? ?? '';
+          nextExpectedChunkIndex = 1;
+          pendingDecryptedChunks.clear();
 
           final partPath = p.join(destDir, '$incomingFileName.part');
           partFile = File(partPath);
@@ -579,8 +685,15 @@ class InternetTransferService {
         } else if (partSink != null && incomingFileName != null) {
           // Decrypt binary chunk
           final decryptedChunk = await _decryptBytes(chunk.data);
-          partSink.add(decryptedChunk);
-          bytesReceived += decryptedChunk.length;
+          pendingDecryptedChunks[chunk.chunkIndex] = decryptedChunk;
+
+          // Assemble all consecutive in-order chunks
+          while (pendingDecryptedChunks.containsKey(nextExpectedChunkIndex)) {
+            final inOrderBytes = pendingDecryptedChunks.remove(nextExpectedChunkIndex)!;
+            partSink.add(inOrderBytes);
+            bytesReceived += inOrderBytes.length;
+            nextExpectedChunkIndex++;
+          }
 
           final progress = (bytesReceived / incomingFileSize).clamp(0.0, 1.0);
           final elapsedSec = stopwatch.elapsedMilliseconds / 1000.0;

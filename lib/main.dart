@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'services/clipboard_service.dart';
-import 'services/history_repository.dart';
+import 'services/storage/history_repository.dart';
 import 'services/hotspot_service.dart';
 import 'services/internet_transfer_service.dart';
 import 'services/network_service.dart';
-import 'services/storage_service.dart';
+import 'services/storage/storage_service.dart';
 import 'theme/gemini_theme.dart';
 import 'views/landing_view.dart';
 
@@ -27,6 +27,7 @@ void main() async {
   final networkService = NetworkService(
     storageService: storageService,
     historyRepository: historyRepository,
+    deviceName: hotspotService.ssid.isNotEmpty ? hotspotService.ssid : null,
   );
   await networkService.start();
 

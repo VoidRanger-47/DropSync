@@ -85,22 +85,36 @@ class Peer {
         int? customPort;
         String? token;
 
-        final parts = trimmed.substring(5).split(';');
-        for (final part in parts) {
-          final p = part.trim();
-          final upper = p.toUpperCase();
-          if (upper.startsWith('S:')) {
-            ssid = p.substring(2);
-          } else if (upper.startsWith('P:')) {
-            password = p.substring(2);
-          } else if (upper.startsWith('IP:')) {
-            customIp = p.substring(3);
-          } else if (upper.startsWith('PORT:')) {
-            customPort = int.tryParse(p.substring(5));
-          } else if (upper.startsWith('TOKEN:')) {
-            token = p.substring(6);
-          }
+        final content = trimmed.substring(5);
+
+        // Match SSID: S:<ssid>; handling escaped semicolons \;
+        final ssidMatch = RegExp(r'(?:^|;)S:((?:\\;|[^;])+)', caseSensitive: false).firstMatch(content);
+        if (ssidMatch != null) {
+          ssid = _cleanWifiField(ssidMatch.group(1)!);
         }
+
+        // Match Password: P:<pass>; handling escaped semicolons \;
+        final passMatch = RegExp(r'(?:^|;)P:((?:\\;|[^;])*)', caseSensitive: false).firstMatch(content);
+        if (passMatch != null) {
+          password = _cleanWifiField(passMatch.group(1)!);
+        }
+
+        // Match DropSync extensions: IP, PORT, TOKEN
+        final ipMatch = RegExp(r'(?:^|;)IP:([^;]+)', caseSensitive: false).firstMatch(content);
+        if (ipMatch != null) {
+          customIp = ipMatch.group(1)!.trim();
+        }
+
+        final portMatch = RegExp(r'(?:^|;)PORT:([^;]+)', caseSensitive: false).firstMatch(content);
+        if (portMatch != null) {
+          customPort = int.tryParse(portMatch.group(1)!.trim());
+        }
+
+        final tokenMatch = RegExp(r'(?:^|;)TOKEN:([^;]+)', caseSensitive: false).firstMatch(content);
+        if (tokenMatch != null) {
+          token = tokenMatch.group(1)!.trim();
+        }
+
         if (ssid != null && ssid.isNotEmpty) {
           return Peer(
             id: 'hotspot_${ssid.replaceAll(' ', '_')}',
@@ -160,8 +174,10 @@ class Peer {
         final token = map['token'] as String? ?? '';
         final device = map['device'] as String? ?? map['device_name'] as String? ?? 'Receiver Node';
         final platform = map['platform'] as String? ?? 'remote';
-        final ssid = map['ssid'] as String? ?? map['hotspot_ssid'] as String?;
-        final password = map['password'] as String? ?? map['hotspot_password'] as String?;
+        var ssid = map['ssid'] as String? ?? map['hotspot_ssid'] as String?;
+        var password = map['password'] as String? ?? map['hotspot_password'] as String?;
+        if (ssid != null) ssid = _cleanWifiField(ssid);
+        if (password != null) password = _cleanWifiField(password);
         final isHotspot = (map['isHotspot'] as bool?) ?? (ssid != null && ssid.isNotEmpty);
 
         if (ip != null && ip.isNotEmpty) {
@@ -201,6 +217,22 @@ class Peer {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// Sanitizes Wi-Fi QR field values by removing wrapping quotes and unescaping backslashes.
+  static String _cleanWifiField(String value) {
+    var v = value.trim();
+    if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
+      if (v.length >= 2) {
+        v = v.substring(1, v.length - 1);
+      }
+    }
+    return v
+        .replaceAll(r'\;', ';')
+        .replaceAll(r'\:', ':')
+        .replaceAll(r'\,', ',')
+        .replaceAll(r'\"', '"')
+        .replaceAll(r'\\', r'\');
   }
 
   /// Serialize to pairing QR JSON string

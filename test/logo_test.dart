@@ -68,7 +68,7 @@ void main() {
             body: Center(
               child: DropSyncLogo(
                 size: 64,
-                assetPath: 'assets/icon/dropsync_mark.png',
+                assetPath: 'assets/icon/icon.png',
                 showText: false,
               ),
             ),

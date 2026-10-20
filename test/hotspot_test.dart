@@ -130,9 +130,13 @@ void main() {
       expect(peer1!.token, equals('852-963'));
       expect(peer1.name, contains('852-963'));
 
-      final peer2 = Peer.fromQrString('https://dropsync-web.vercel.app/?room=123-456');
+      final peer2 = Peer.fromQrString('https://dropsync.voidranger.workers.dev/?room=123-456');
       expect(peer2, isNotNull);
       expect(peer2!.token, equals('123-456'));
+
+      final peerLegacy = Peer.fromQrString('https://dropsync-web.vercel.app/?room=123-456');
+      expect(peerLegacy, isNotNull);
+      expect(peerLegacy!.token, equals('123-456'));
 
       final peer3 = Peer.fromQrString('789-012');
       expect(peer3, isNotNull);

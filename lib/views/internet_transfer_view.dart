@@ -435,6 +435,15 @@ class _InternetTransferViewState extends State<InternetTransferView>
             ),
             actions: [
               TextButton(
+                onPressed: () {
+                  setDialogState(() {
+                    ctrl.text = InternetTransferService.defaultRelayUrl;
+                    testResult = null;
+                  });
+                },
+                child: const Text('Reset Default', style: TextStyle(color: GeminiTheme.cyan)),
+              ),
+              TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text('Cancel', style: TextStyle(color: GeminiTheme.textMuted)),
               ),
@@ -446,6 +455,7 @@ class _InternetTransferViewState extends State<InternetTransferView>
                 ),
                 onPressed: () {
                   widget.internetService.setVercelUrl(ctrl.text);
+                  if (mounted) setState(() {});
                   Navigator.of(ctx).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Relay endpoint saved: ${ctrl.text}')),
@@ -621,8 +631,8 @@ class _InternetTransferViewState extends State<InternetTransferView>
                   Expanded(
                     child: Text(
                       isCf
-                          ? (isWs ? '⚡ Cloudflare Edge • WebSocket Active' : '⚡ Cloudflare Edge • Connecting...')
-                          : '🌐 Vercel Relay ($host)',
+                          ? (isWs ? '⚡ Cloudflare ($host) • Active' : '⚡ Cloudflare ($host) • Connecting...')
+                          : '🌐 Relay ($host)',
                       style: TextStyle(
                         color: isCf ? const Color(0xFFFFA033) : GeminiTheme.textSecondary,
                         fontSize: 11,

@@ -50,7 +50,9 @@ class InternetTransferService {
   bool _isSender = false;
   String _localPeerId = '';
   String _remotePeerId = '';
-  String _customVercelUrl = 'https://dropsync.voidranger.workers.dev';
+  static const String defaultRelayUrl = 'https://dropsync.voidranger.workers.dev';
+  static const String _relayStorageKey = 'dropsync_custom_relay_url_v2';
+  String _customVercelUrl = defaultRelayUrl;
 
   // Presence & Heartbeat
   bool _isLocalOnPage = true;
@@ -105,11 +107,29 @@ class InternetTransferService {
   Future<void> _loadSavedRelayUrl() async {
     try {
       final sp = await SharedPreferences.getInstance();
-      final saved = sp.getString('dropsync_custom_relay_url');
+      // Clean legacy cache keys that held old/deprecated relay domains
+      await sp.remove('dropsync_custom_relay_url');
+
+      final saved = sp.getString(_relayStorageKey);
       if (saved != null && saved.trim().isNotEmpty) {
-        _customVercelUrl = saved.trim();
+        final trimmed = saved.trim();
+        // If legacy domain was saved, migrate directly to new domain
+        if (trimmed.contains('abhinavkv047') ||
+            trimmed.contains('dropsync-relay.workers.dev') ||
+            trimmed == 'https://dropsync-web.vercel.app' ||
+            trimmed == 'https://dropsync-relay.onrender.com') {
+          _customVercelUrl = defaultRelayUrl;
+          await sp.setString(_relayStorageKey, defaultRelayUrl);
+        } else {
+          _customVercelUrl = trimmed;
+        }
+      } else {
+        _customVercelUrl = defaultRelayUrl;
+        await sp.setString(_relayStorageKey, defaultRelayUrl);
       }
-    } catch (_) {}
+    } catch (_) {
+      _customVercelUrl = defaultRelayUrl;
+    }
   }
 
   final HttpClient _httpClient = HttpClient()
@@ -160,15 +180,19 @@ class InternetTransferService {
       _customVercelUrl.toLowerCase().contains('cloudflare');
 
   void setVercelUrl(String url) {
-    _customVercelUrl = url.trim();
+    _customVercelUrl = url.trim().isEmpty ? defaultRelayUrl : url.trim();
     SharedPreferences.getInstance().then((sp) {
-      sp.setString('dropsync_custom_relay_url', _customVercelUrl);
+      sp.setString(_relayStorageKey, _customVercelUrl);
     }).catchError((_) => null);
 
     // Reconnect socket if room active
     if (_currentRoomCode != null) {
       _connectWebSocket(_currentRoomCode!, _isSender);
     }
+  }
+
+  void resetToDefaultRelay() {
+    setVercelUrl(defaultRelayUrl);
   }
 
   /// Tests connection latency and health against active or custom relay URL.

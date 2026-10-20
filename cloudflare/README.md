@@ -26,9 +26,9 @@ An ultra-low latency, persistent WebSockets & REST Relay for DropSync End-to-End
 
 3. Copy your live deployed URL!
    ```text
-   Uploaded dropsync-relay (1.20 sec)
-   Deployed dropsync-relay triggers (0.42 sec)
-     https://dropsync-relay.<your-subdomain>.workers.dev
+   Uploaded dropsync (1.20 sec)
+   Deployed dropsync triggers (0.42 sec)
+     https://dropsync.voidranger.workers.dev
    ```
 
 ---
@@ -37,7 +37,7 @@ An ultra-low latency, persistent WebSockets & REST Relay for DropSync End-to-End
 
 1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) and log in or create a free account.
 2. Click **Compute (Workers & Pages)** > **Create application** > **Create Worker**.
-3. Name it `dropsync-relay` and click **Deploy**.
+3. Name it `dropsync` and click **Deploy**.
 4. Click **Edit code**, copy and paste the contents of [`worker.js`](worker.js) into the editor, and click **Save and Deploy**.
 5. Copy your worker's `.workers.dev` URL.
 
@@ -46,9 +46,9 @@ An ultra-low latency, persistent WebSockets & REST Relay for DropSync End-to-End
 ## 📱 Connecting DropSync to Your Cloudflare Relay
 
 1. Open the DropSync App on Android or Windows Desktop.
-2. Go to **Settings** > **Internet Relay Server**.
-3. Paste your Cloudflare Worker URL:
+2. Go to **Internet** > tap the top relay pill (or **Settings**).
+3. Confirm or paste your Cloudflare Worker URL:
    ```text
-   https://dropsync-relay.<your-subdomain>.workers.dev
+   https://dropsync.voidranger.workers.dev
    ```
 4. Done! All internet transfers and presence checks now route through the ultra-fast Cloudflare Edge with 0ms cold starts.

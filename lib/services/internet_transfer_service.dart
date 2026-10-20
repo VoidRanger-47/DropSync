@@ -58,6 +58,7 @@ class InternetTransferService {
   DateTime _lastRemoteHeartbeat = DateTime.fromMillisecondsSinceEpoch(0);
   Timer? _heartbeatTimer;
   Timer? _presenceCheckTimer;
+  WebSocket? _relaySocket;
 
   // Active Transfer State
   InternetTransferState _transferState = InternetTransferState.idle;
@@ -245,9 +246,8 @@ class InternetTransferService {
     }).catchError((_) => null);
 
     _setPresence(InternetPeerPresence.waitingForPeer, 'Room created ($code). Waiting for receiver to open this page...');
-    _setTransferState(InternetTransferState.ready, 'Share room code $code with receiver');
-
     _startHeartbeatLoop();
+    _connectWebSocket(code, true);
     return code;
   }
 
@@ -293,6 +293,7 @@ class InternetTransferService {
     }).catchError((_) => null);
 
     _startHeartbeatLoop();
+    _connectWebSocket(cleanCode, false);
     return true;
   }
 
@@ -475,15 +476,38 @@ class InternetTransferService {
       chunkIndex: 0,
     ));
 
-    // Submit header chunk to Vercel (unified router) and await delivery
-    await _postJson('/api/room?action=chunk', {
-      'roomCode': code,
-      'peerId': _localPeerId,
-      'chunkIndex': 0,
-      'totalChunks': (fileSize / chunkSize).ceil() + 1,
-      'isHeader': true,
-      'dataBase64': base64Encode(encryptedHeader),
-    }).catchError((_) => null);
+    Future<void> sendRelayChunk({
+      required int chunkIndex,
+      required int totalChunks,
+      required bool isHeader,
+      required String dataBase64,
+    }) async {
+      final payload = {
+        'roomCode': code,
+        'peerId': _localPeerId,
+        'chunkIndex': chunkIndex,
+        'totalChunks': totalChunks,
+        'isHeader': isHeader,
+        'dataBase64': dataBase64,
+      };
+
+      if (_relaySocket != null && _relaySocket!.readyState == WebSocket.open) {
+        try {
+          _relaySocket!.add(jsonEncode(payload));
+          return;
+        } catch (_) {}
+      }
+
+      await _postJson('/api/room?action=chunk', payload).catchError((_) => null);
+    }
+
+    // Submit header chunk to relay and await delivery
+    await sendRelayChunk(
+      chunkIndex: 0,
+      totalChunks: (fileSize / chunkSize).ceil() + 1,
+      isHeader: true,
+      dataBase64: base64Encode(encryptedHeader),
+    );
 
     int bytesTransferred = 0;
     int chunkIndex = 1;
@@ -504,15 +528,13 @@ class InternetTransferService {
         chunkIndex: cIdx,
       ));
 
-      // 3. Post chunk to relay server
-      await _postJson('/api/room?action=chunk', {
-        'roomCode': code,
-        'peerId': _localPeerId,
-        'chunkIndex': cIdx,
-        'totalChunks': totalChunks,
-        'isHeader': false,
-        'dataBase64': base64Encode(encryptedChunk),
-      }).catchError((_) => null);
+      // 3. Post chunk to relay server via WebSocket or HTTP fallback
+      await sendRelayChunk(
+        chunkIndex: cIdx,
+        totalChunks: totalChunks,
+        isHeader: false,
+        dataBase64: base64Encode(encryptedChunk),
+      );
     }
 
     void updateSessionProgress() {
@@ -823,7 +845,113 @@ class InternetTransferService {
     if (!_statusMessageController.isClosed) _statusMessageController.add(message);
   }
 
+  Timer? _wsConnectTimer;
+
+  void _disconnectWebSocket() {
+    _wsConnectTimer?.cancel();
+    _wsConnectTimer = null;
+    try {
+      _relaySocket?.close();
+    } catch (_) {}
+    _relaySocket = null;
+  }
+
+  void _connectWebSocket(String roomCode, bool isSender) async {
+    try {
+      _disconnectWebSocket();
+      final uri = Uri.parse(_customVercelUrl.trim());
+      if (uri.host.isEmpty) return;
+      final isSecure = uri.scheme == 'https' || uri.scheme == 'wss';
+      final wsUri = Uri(
+        scheme: isSecure ? 'wss' : 'ws',
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+        path: '/ws',
+        queryParameters: {
+          'room': roomCode,
+          'peer': _localPeerId,
+          'role': isSender ? 'sender' : 'receiver',
+        },
+      );
+
+      final completer = Completer<WebSocket?>();
+      _wsConnectTimer = Timer(const Duration(milliseconds: 2500), () {
+        if (!completer.isCompleted) completer.complete(null);
+      });
+
+      WebSocket.connect(wsUri.toString()).then((ws) {
+        _wsConnectTimer?.cancel();
+        _wsConnectTimer = null;
+        if (!completer.isCompleted) completer.complete(ws);
+      }).catchError((_) {
+        _wsConnectTimer?.cancel();
+        _wsConnectTimer = null;
+        if (!completer.isCompleted) completer.complete(null);
+      });
+
+      final socket = await completer.future;
+      if (socket == null) return;
+      _relaySocket = socket;
+
+      socket.listen(
+        (data) => _handleWebSocketMessage(data),
+        onDone: () => _relaySocket = null,
+        onError: (_) => _relaySocket = null,
+        cancelOnError: true,
+      );
+    } catch (_) {
+      _relaySocket = null;
+    }
+  }
+
+  void _handleWebSocketMessage(dynamic data) {
+    try {
+      if (data is String) {
+        final json = jsonDecode(data) as Map<String, dynamic>;
+        final type = json['type'] as String?;
+
+        if (type == 'presence') {
+          final bothPresent = json['bothPresent'] as bool? ?? false;
+          if (bothPresent) {
+            _lastRemoteHeartbeat = DateTime.now();
+            if (!_isRemoteOnPage) {
+              _isRemoteOnPage = true;
+              _setPresence(InternetPeerPresence.bothPresent, 'Connected to peer via Edge WebSocket!');
+              if (_transferState == InternetTransferState.paused) {
+                _setTransferState(InternetTransferState.transferring, 'Peer returned! Resuming transfer...');
+              }
+            }
+          }
+        } else if (type == 'peer_left') {
+          _isRemoteOnPage = false;
+          _setPresence(InternetPeerPresence.peerLeft, 'Peer left the page. Transfer paused.');
+          if (_transferState == InternetTransferState.transferring) {
+            _setTransferState(InternetTransferState.paused, 'Transfer paused: waiting for peer...');
+          }
+        } else if (json['chunkIndex'] != null) {
+          final code = _currentRoomCode;
+          if (code != null) {
+            final room = _mockRelayRooms[code];
+            if (room != null) {
+              final isHdr = json['isHeader'] as bool? ?? false;
+              final b64 = json['dataBase64'] as String? ?? '';
+              final idx = (json['chunkIndex'] as num?)?.toInt() ?? 0;
+              if (b64.isNotEmpty) {
+                room.chunkQueue.add(_RelayChunk(
+                  isHeader: isHdr,
+                  data: base64Decode(b64),
+                  chunkIndex: idx,
+                ));
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+  }
+
   void closeRoom() {
+    _disconnectWebSocket();
     _sendHeartbeat(status: 'left');
     _heartbeatTimer?.cancel();
     _presenceCheckTimer?.cancel();

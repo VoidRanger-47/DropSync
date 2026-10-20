@@ -1,0 +1,10 @@
+name = "dropsync-relay"
+main = "worker.js"
+compatibility_date = "2024-04-01"
+
+# Workers.dev is 100% free with unlimited custom subdomains:
+# https://dropsync-relay.<your-subdomain>.workers.dev
+workers_dev = true
+
+[observability]
+enabled = true

@@ -1,0 +1,24 @@
+{
+  "name": "dropsync-cloudflare-relay",
+  "version": "1.0.0",
+  "description": "Ultra-low latency global WebSockets & REST Relay for DropSync E2EE transfers on Cloudflare Workers",
+  "main": "worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "keywords": [
+    "dropsync",
+    "cloudflare-workers",
+    "webrtc",
+    "websockets",
+    "e2ee",
+    "relay"
+  ],
+  "author": "DropSync",
+  "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^3.80.0"
+  }
+}
